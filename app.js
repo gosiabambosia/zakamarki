@@ -532,5 +532,14 @@ window.addEventListener('hashchange', route);
 route();
 
 /* ——— instalacja jako aplikacja i trwałość danych ——— */
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  // Gdy po wdrożeniu nowy service worker przejmie stronę, przeładuj ją raz, żeby od razu
+  // pokazać nową wersję. Pomijamy pierwszą instalację (wcześniej nie było żadnego).
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloaded) { reloaded = true; location.reload(); }
+  });
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
 if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});

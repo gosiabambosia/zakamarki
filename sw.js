@@ -1,11 +1,18 @@
-// Service worker: trzyma pliki aplikacji w pamięci telefonu, żeby otwierała się natychmiast
-// (także offline). Zapytania do Wikipedii przechodzą bez zmian.
-const CACHE = 'zakamarki-v4';
+// Service worker: trzyma pliki aplikacji w pamięci telefonu, żeby działała także offline.
+// Zapytania do Wikipedii przechodzą bez zmian.
+//
+// Strategia „najpierw sieć”: przy każdym otwarciu pytamy serwer o świeże pliki
+// (z cache: 'no-cache', czyli z pominięciem 10-minutowej pamięci przeglądarki, którą ustawia
+// GitHub Pages; niezmieniony plik serwer odsyła jako krótkie „304 bez zmian”). Kopia w pamięci
+// jest używana tylko bez internetu. Dzięki temu nowe wdrożenie widać od razu, nie po kilku otwarciach.
+const CACHE = 'zakamarki-v5';
 const SHELL = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -14,16 +21,17 @@ self.addEventListener('activate', (e) => {
     .then(() => self.clients.claim()));
 });
 
-// Najpierw wersja z pamięci, w tle pobranie świeżej — nowe wdrożenie widać przy kolejnym otwarciu.
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
-  e.respondWith(caches.open(CACHE).then(async (cache) => {
-    const cached = await cache.match(e.request, { ignoreSearch: true });
-    const fresh = fetch(e.request).then((res) => {
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    try {
+      const res = await fetch(e.request, { cache: 'no-cache' });
       if (res.ok) cache.put(e.request, res.clone());
       return res;
-    }).catch(() => cached);
-    return cached || fresh;
-  }));
+    } catch {
+      return (await cache.match(e.request, { ignoreSearch: true })) || Response.error();
+    }
+  })());
 });

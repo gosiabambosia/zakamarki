@@ -37,3 +37,7 @@ Po etapie 2 przysłała moodboard (szklane lampy-grzybki, salon w terakocie, nai
 
 1. Ikony w palecie Szkliwo (obecne z etapu 1 są robocze i jej się nie podobają).
 2. Etap 3 — Ślad (IndexedDB, pomiar głębokości, minimapa tropu, kolory linków według stanu, karta hasła, kopia zapasowa).
+
+## Poprawka: aktualizacja na telefonie (ta sama sesja)
+
+Na zainstalowanej PWA (Android, Chrome) dalej była stara paleta. Przyczyna: service worker „najpierw pamięć” + `Cache-Control: max-age=600` z GitHub Pages — nowy SW przy instalacji mógł zapisać do pamięci stare pliki z HTTP cache, a nowa wersja pojawiała się dopiero po kilku otwarciach. Zmiana (`sw.js` v5): strategia **najpierw sieć** z `cache: 'no-cache'` (pamięć tylko offline), instalacja z `cache: 'reload'`, a `app.js` przeładowuje stronę raz, gdy nowy SW przejmie kontrolę (`controllerchange`). Telefon ze starym SW potrzebuje jeszcze jednego-dwóch pełnych zamknięć i otwarć, potem aktualizacje są natychmiastowe.
