@@ -78,28 +78,133 @@ function fillList(el, titles, emptyText) {
   for (const t of titles) el.append(typeof t === 'string' ? linkItem(t) : linkItem(t.title, t.description));
 }
 
+// Odmiana: 1 krok, 2–4 kroki, 5+ kroków (ale 12–14 kroków).
+function plural(n, one, few, many) {
+  if (n === 1) return one;
+  const d = n % 10, dd = n % 100;
+  return d >= 2 && d <= 4 && !(dd >= 12 && dd <= 14) ? few : many;
+}
+
+/* Miniatury haseł (zdjęcie główne z prop=pageimages). Zapamiętujemy je w przeglądarce,
+   także brak zdjęcia (null), żeby nie pytać Wikipedii drugi raz o to samo. */
+state.thumbs = store.get('thumbs', {});
+async function loadThumbs(titles) {
+  const missing = titles.filter((t) => !(t in state.thumbs)).slice(0, 50);
+  if (missing.length) {
+    try {
+      const data = await api({ action: 'query', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '300', redirects: '1', titles: missing.join('|') });
+      const alias = {};
+      for (const m of [...(data.query?.normalized || []), ...(data.query?.redirects || [])]) alias[m.to] = m.from;
+      for (const pg of data.query?.pages || []) {
+        const src = pg.thumbnail?.source || null;
+        state.thumbs[pg.title] = src;
+        if (alias[pg.title]) state.thumbs[alias[pg.title]] = src;
+      }
+      for (const t of missing) if (!(t in state.thumbs)) state.thumbs[t] = null;
+      store.set('thumbs', state.thumbs);
+    } catch { /* bez internetu półka pokaże kolorowe karty */ }
+  }
+  return state.thumbs;
+}
+
+const COVER_COLORS = ['var(--pop-pink)', 'var(--pop-mustard)', 'var(--pop-lime)', 'var(--pop-cobalt)', 'var(--pop-orange)'];
+function renderShelf(titles) {
+  const shelf = $('#shelf');
+  shelf.replaceChildren();
+  if (!titles.length) {
+    const p = document.createElement('p');
+    p.className = 'empty';
+    p.textContent = 'Przypnij hasło w czytniku, a stanie tutaj na półce.';
+    shelf.append(p);
+    return;
+  }
+  titles.forEach((t, i) => {
+    const a = document.createElement('a');
+    a.className = 'cover';
+    a.href = hrefFor(t);
+    const label = document.createElement('span');
+    label.textContent = t;
+    a.append(label);
+    const src = state.thumbs[t];
+    if (src) a.style.backgroundImage = `url("${src}")`;
+    else {
+      a.classList.add('no-img');
+      a.style.background = COVER_COLORS[i % COVER_COLORS.length];
+      if (i % COVER_COLORS.length === 3) a.style.color = 'var(--on-pop)';
+    }
+    shelf.append(a);
+  });
+}
+
 function renderHome() {
   show('home');
   document.title = 'Zakamarki';
   setProgress(0);
-  fillList($('#saved-list'), state.saved, 'Nic jeszcze nie przypięłaś.');
+
+  // Nagłówek mówi, gdzie jesteś — z liczb, które naprawdę mierzymy.
+  const trail = state.trail;
+  const hero = $('#hero'), lead = $('#hero-lead'), cont = $('#continue');
+  const today = new Date().setHours(0, 0, 0, 0);
+  const todayCount = new Set(state.history.filter((h) => h.at >= today).map((h) => h.title)).size;
+  if (trail.length > 1) {
+    const steps = trail.length - 1;
+    hero.innerHTML = '';
+    const em = document.createElement('em');
+    em.textContent = `${steps} ${plural(steps, 'krok', 'kroki', 'kroków')}`;
+    hero.append(em, ` od hasła „${trail[0]}”`);
+    lead.textContent = `Ostatnio: ${trail[trail.length - 1]}` + (todayCount ? ` · dziś ${todayCount} ${plural(todayCount, 'hasło', 'hasła', 'haseł')}` : '');
+  } else if (trail.length === 1) {
+    hero.textContent = `Ostatnio: ${trail[0]}`;
+    lead.textContent = 'Kliknij link w artykule, a zacznie się trop.';
+  } else {
+    hero.innerHTML = 'Dokąd dziś <em>w głąb</em>?';
+    lead.textContent = 'Wyszukaj hasło lupą u góry.';
+  }
+  cont.hidden = !trail.length;
+  if (trail.length) cont.href = hrefFor(trail[trail.length - 1]);
+
+  // Półka z przypiętymi: najpierw od razu (z pamięci), potem z dociągniętymi miniaturami.
+  $('#saved-count').textContent = state.saved.length ? `${state.saved.length} ${plural(state.saved.length, 'hasło', 'hasła', 'haseł')}` : '';
+  renderShelf(state.saved);
+  if (state.saved.some((t) => !(t in state.thumbs))) loadThumbs(state.saved).then(() => {
+    if (!$('#view-home').hidden) renderShelf(state.saved);
+  });
+
+  // Trop jako numerowana lista 0.1, 0.2…; bieżący krok wyróżniony.
+  const ol = $('#last-trail');
+  ol.replaceChildren();
+  $('#trail-count').textContent = trail.length ? `${trail.length} ${plural(trail.length, 'hasło', 'hasła', 'haseł')}` : '';
+  if (!trail.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'Trop pojawi się po pierwszym artykule.';
+    ol.append(li);
+  }
+  trail.forEach((t, i) => {
+    const li = document.createElement('li');
+    if (i === trail.length - 1) li.className = 'now';
+    const a = document.createElement('a');
+    a.href = hrefFor(t);
+    a.innerHTML = '<span class="n"></span><span class="t"></span><span class="go" aria-hidden="true">→</span>';
+    a.querySelector('.n').textContent = (i < 9 ? '0.' : '') + (i + 1);
+    a.querySelector('.t').textContent = t;
+    li.append(a);
+    ol.append(li);
+  });
+
+  const all = new Set(state.history.map((h) => h.title));
+  const weekAgo = Date.now() - 7 * 864e5;
+  const week = new Set(state.history.filter((h) => h.at >= weekAgo).map((h) => h.title)).size;
+  $('#stat-total').textContent = all.size;
+  $('#stat-week').textContent = `${week} w tym tygodniu`;
+
   const seen = new Set();
   const recent = [];
-  for (let i = state.history.length - 1; i >= 0 && recent.length < 15; i--) {
+  for (let i = state.history.length - 1; i >= 0 && recent.length < 10; i--) {
     const t = state.history[i].title;
     if (!seen.has(t)) { seen.add(t); recent.push(t); }
   }
   fillList($('#history-list'), recent, 'Historia pojawi się po pierwszym artykule.');
-  const ol = $('#last-trail');
-  ol.replaceChildren();
-  for (const t of state.trail) {
-    const li = document.createElement('li');
-    const a = document.createElement('a');
-    a.href = hrefFor(t);
-    a.textContent = t;
-    li.append(a);
-    ol.append(li);
-  }
 }
 
 /* ——— wyszukiwanie ——— */
@@ -149,6 +254,15 @@ $('#search-form').addEventListener('submit', async (e) => {
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.search')) $('#suggestions').hidden = true;
 });
+
+// Lupa w nagłówku: rozwija pole wyszukiwania w miejscu nazwy; drugie stuknięcie zwija.
+function toggleSearch(open) {
+  $('.bar').classList.toggle('is-searching', open);
+  $('#search-toggle').setAttribute('aria-expanded', String(open));
+  if (open) $('#search').focus();
+  else { $('#search').blur(); $('#suggestions').hidden = true; }
+}
+$('#search-toggle').addEventListener('click', () => toggleSearch(!$('.bar').classList.contains('is-searching')));
 
 /* ——— czytnik ——— */
 function cleanArticle(html) {
@@ -508,7 +622,7 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('#note') && !e.target.closest('sup.reference')) hideNote();
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { hideNote(); toggleSheet(false); }
+  if (e.key === 'Escape') { hideNote(); toggleSheet(false); toggleSearch(false); }
 });
 // Zamykamy dopiero po wyraźnym przewinięciu: na telefonie chowający się pasek adresu
 // też wywołuje „scroll”, a nie powinien zamykać dymka.
@@ -525,6 +639,7 @@ $('#note').addEventListener('click', (e) => {
 function route() {
   const m = location.hash.match(/^#\/wiki\/(.+)$/);
   $('#suggestions').hidden = true;
+  if (m) toggleSearch(false);
   if (m) openArticle(decodeTitle(m[1]));
   else renderHome();
 }

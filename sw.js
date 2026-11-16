@@ -5,7 +5,7 @@
 // (z cache: 'no-cache', czyli z pominięciem 10-minutowej pamięci przeglądarki, którą ustawia
 // GitHub Pages; niezmieniony plik serwer odsyła jako krótkie „304 bez zmian”). Kopia w pamięci
 // jest używana tylko bez internetu. Dzięki temu nowe wdrożenie widać od razu, nie po kilku otwarciach.
-const CACHE = 'zakamarki-v5';
+const CACHE = 'zakamarki-v6';
 const SHELL = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 

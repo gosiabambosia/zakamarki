@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Zakamarki</title>
-  <meta name="theme-color" content="#fbf1ee">
+  <meta name="theme-color" content="#f1e7dc">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -13,6 +13,9 @@
   <!-- Trzy kroje o płynnej grubości (wersje zmienne) w jednym arkuszu; przeglądarka pobiera
        plik fontu dopiero, gdy krój jest użyty. -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,200..800;1,200..800&family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap">
+  <!-- Interfejs: Inter Tight. Nazwa aplikacji: Fraunces Black Soft, pobierany tylko dla liter „Zakamarki”. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400..700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,900,100&text=Zakamarki&display=swap">
   <link rel="stylesheet" href="style.css">
   <script>
     // Tło czytnika i dzienna/nocna wersja palety ustawione przed pierwszym rysowaniem,
@@ -35,18 +38,36 @@
       <input id="search" type="search" placeholder="Szukaj w Wikipedii" enterkeyhint="search" aria-label="Szukaj w Wikipedii">
       <ul id="suggestions" class="suggestions" hidden></ul>
     </form>
+    <button id="search-toggle" class="round" type="button" aria-label="Szukaj" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5 L20 20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
   </header>
 
   <main>
-    <section id="view-home" class="view">
-      <h2 class="label">Przypięte</h2>
-      <ul id="saved-list" class="list"></ul>
+    <section id="view-home" class="view home">
+      <h1 id="hero" class="hero"></h1>
+      <p id="hero-lead" class="hero-lead"></p>
+      <a id="continue" class="pill-ink" href="#" hidden>Czytaj dalej <span aria-hidden="true">→</span></a>
 
-      <h2 class="label">Ostatni trop</h2>
-      <ol id="last-trail" class="trail-static"></ol>
+      <div class="sec-head"><h2>Przypięte</h2><span id="saved-count" class="sec-count"></span></div>
+      <div class="shelf-wrap">
+        <div class="shelf-glass" aria-hidden="true"></div>
+        <div id="shelf" class="shelf"></div>
+      </div>
 
-      <h2 class="label">Ostatnio otwarte</h2>
-      <ul id="history-list" class="list"></ul>
+      <div class="card">
+        <div class="sec-head"><h2>Ostatni trop</h2><span id="trail-count" class="sec-count"></span></div>
+        <ol id="last-trail" class="numbered"></ol>
+        <div class="stat-row">
+          <div><div class="stat-lab">otwartych haseł</div><div id="stat-total" class="big-num"></div></div>
+          <span id="stat-week" class="chip"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head"><h2>Ostatnio otwarte</h2></div>
+        <ul id="history-list" class="list"></ul>
+      </div>
     </section>
 
     <section id="view-results" class="view" hidden>

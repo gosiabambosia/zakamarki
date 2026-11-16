@@ -15,7 +15,7 @@ Właścicielka czyta głównie na telefonie z Androidem (zainstalowana PWA), cza
 - **Każdą odpowiedź kończ rekomendacją, co najsensowniej zrobić dalej** — także gdy nie jest jasne, czy to już kolejny etap.
 - Prowadź z kierunkiem. Lepiej zaproponować i zrobić niż pytać o każdy szczegół; pytaj o rzeczy, które realnie zmieniają wynik.
 - **Nazwy funkcji opisują operację.** Bez nazw z „osobowością” czy żartem (odrzucone: „wessało”, „dzika karta”). Nazwa aplikacji: Zakamarki.
-- Estetyka aplikacji: paleta **Szkliwo** (szklane lampy-grzybki: róż, pomarańcz, morska zieleń, musztarda, kobalt, śliwka, czerwień na różowawej bieli; nocą śliwkowy atrament). Moodboard: nasycone, ciepłe, retro, ilustracyjne (szkliwo, glina, oliwkowy welur, haft z koralików, kredki). **Nie** beż i minimalizm w interfejsie. **Czytnik jest wyjątkiem:** jego tła wybiera się pod oczy (ma astygmatyzm) — ciepła biel jak w interfejsie Claude, kontrast 10–13:1, bez czystej bieli i czerni; ciemne tła tylko szarobrązowe z tekstem w kolorze kości słoniowej. Paleta aplikacji i tło czytnika to **dwie niezależne warstwy**.
+- Estetyka aplikacji: paleta **Krem** — kremowa baza (`#f1e7dc`), atramentowe pigułki, zabawne nasycone akcenty (róż, musztarda, limonka, kobalt, pomarańcz); nocą ciepły atrament. Kolor wnoszą też **miniatury haseł** (zdjęcia główne z Wikipedii). Typografia: **Inter Tight** w całym interfejsie (duże, ciasne nagłówki jako „bohater” ekranu), nazwa aplikacji w **Fraunces Black Soft**. Inspiracje: redakcyjne aplikacje do czytania (numerowane listy 0.1, 0.2, półki ze szklanym pasem, wielkie liczby), bloby i kafelki-wybory; wcześniejszy moodboard: szkliwo, glina, haft, kredki, kosmos. **Nie** beż-minimalizm. Ikony: płaskie — jeden pełny kolor tła i prosty znak, bez cieniowania i gry światłem. **Czytnik jest wyjątkiem:** jego tła wybiera się pod oczy (ma astygmatyzm) — ciepła biel jak w interfejsie Claude, kontrast 10–13:1, bez czystej bieli i czerni; ciemne tła tylko szarobrązowe z tekstem w kolorze kości słoniowej. Paleta aplikacji i tło czytnika to **dwie niezależne warstwy**.
 - Na koniec każdej sesji dopisz handoff do `docs/handoffs/RRRR-MM-DD-NNN-slug.md`: co zrobione, decyzje, stan, następne kroki. Ma pozwolić następnej sesji ruszyć bez dopytywania.
 
 ## Architektura (etapy 1–2)
@@ -25,15 +25,15 @@ Czysty HTML/CSS/JS. **Bez frameworka, bez kroku budowania, bez zależności npm*
 | Plik | Rola |
 |---|---|
 | `index.html` | szkielet: nagłówek z wyszukiwarką, widoki `home`, `results`, `reader` |
-| `style.css` | wygląd; wszystkie kolory, kroje i wymiary jako zmienne. Dwie warstwy: paleta aplikacji Szkliwo (`--bg`, `--fg`, `--glaze-*`; dzień/noc przez `html[data-scheme]`) i tło czytnika (`--page`, `--text`, `--page-*`; `html[data-page]`: papier, len, szalwia, lawenda, grafit, kakao). Ciemne tło czytnika przełącza paletę na nocną. |
-| `app.js` | logika: API, czyszczenie treści, routing, trop, historia, przypięte, panel „Aa” (ustawienia → zmienne CSS na `<html>`, presety), przypisy jako dymki, zwijany infobox |
+| `style.css` | wygląd; wszystkie kolory, kroje i wymiary jako zmienne. Dwie warstwy: paleta aplikacji Krem (`--bg`, `--fg`, `--pop-*`; dzień/noc przez `html[data-scheme]`) i tło czytnika (`--page`, `--text`, `--page-*`; `html[data-page]`: papier, len, szalwia, lawenda, grafit, kakao). Ciemne tło czytnika przełącza paletę na nocną. |
+| `app.js` | logika: API, czyszczenie treści, routing, trop, historia, przypięte, panel „Aa” (ustawienia → zmienne CSS na `<html>`, presety), przypisy jako dymki, zwijany infobox, ekran startowy (nagłówek z liczbami, półka przypiętych z miniaturami `prop=pageimages`, trop jako lista 0.1…) |
 | `manifest.webmanifest`, `sw.js`, `icons/` | instalacja jako PWA i cache plików aplikacji |
 
 - **API:** Action API `https://en.wikipedia.org/w/api.php` z `origin=*` i `formatversion=2` (zapytania anonimowe z przeglądarki, CORS). Podpowiedzi: `generator=prefixsearch` + `prop=description`. Wyszukiwanie: `generator=search`. Artykuł: `action=parse&prop=text|displaytitle&redirects=1&disableeditsection=1&disabletoc=1`. Starsze endpointy REST są częściowo wygaszane — trzymaj się Action API.
 - **Routing:** hash `#/wiki/Tytuł`; przycisk „wstecz” działa natywnie.
 - **`cleanArticle()`:** DOMParser; usuwa navboxy, ambox, przyciski edycji, `style`/`script`; zdejmuje inline `background`/`color` (psują ciemny motyw); linki `/wiki/` → trasa wewnętrzna z `data-title` (przestrzenie nie-hasłowe jak File:, Category: → zewnętrznie); `a.new` → `span.redlink`; linki `#…` → `data-anchor` z przewijaniem bez zmiany trasy.
 - **Trop:** `state.pendingFrom` ustawiane przy kliknięciu linku w artykule; `updateTrail()` dokleja krok, skraca przy powrocie albo zaczyna nowy trop (wejście z wyszukiwarki lub listy).
-- **Dane użytkowniczki:** wyłącznie w przeglądarce (localStorage, prefiks `zakamarki:`; klucze `trail`, `history` = {title, at, from} maks. 2000, `saved`, `reader`, `presets`). W etapie 3 migracja do IndexedDB. **Nigdy nie commituj danych użytkowniczki do repozytorium — jest publiczne.**
+- **Dane użytkowniczki:** wyłącznie w przeglądarce (localStorage, prefiks `zakamarki:`; klucze `trail`, `history` = {title, at, from} maks. 2000, `saved`, `reader`, `presets`, `thumbs` = {tytuł: url miniatury | null}). W etapie 3 migracja do IndexedDB. **Nigdy nie commituj danych użytkowniczki do repozytorium — jest publiczne.**
 
 ## Zasady techniczne
 
