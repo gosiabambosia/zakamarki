@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Zakamarki</title>
+  <meta name="theme-color" content="#0d1326">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="progress" aria-hidden="true"></div>
+
+  <header class="bar">
+    <a href="#" class="brand" aria-label="Zakamarki — start">Zakamarki</a>
+    <form id="search-form" class="search" role="search" autocomplete="off">
+      <input id="search" type="search" placeholder="Szukaj w Wikipedii" enterkeyhint="search" aria-label="Szukaj w Wikipedii">
+      <ul id="suggestions" class="suggestions" hidden></ul>
+    </form>
+  </header>
+
+  <main>
+    <section id="view-home" class="view">
+      <h2 class="label">Przypięte</h2>
+      <ul id="saved-list" class="list"></ul>
+
+      <h2 class="label">Ostatni trop</h2>
+      <ol id="last-trail" class="trail-static"></ol>
+
+      <h2 class="label">Ostatnio otwarte</h2>
+      <ul id="history-list" class="list"></ul>
+    </section>
+
+    <section id="view-results" class="view" hidden>
+      <h2 class="label" id="results-label">Wyniki</h2>
+      <ul id="results-list" class="list"></ul>
+    </section>
+
+    <section id="view-reader" class="view" hidden>
+      <nav id="trail" class="trail" aria-label="Bieżący trop"></nav>
+      <div class="reader-head">
+        <h1 id="article-title"></h1>
+        <button id="pin" class="pin" type="button" aria-pressed="false">Przypnij</button>
+      </div>
+      <p id="status" class="status" hidden></p>
+      <article id="article" class="article"></article>
+      <footer id="attribution" class="attribution"></footer>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
