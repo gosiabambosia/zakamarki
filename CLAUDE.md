@@ -17,22 +17,22 @@ Właścicielka czyta głównie na telefonie z Androidem (zainstalowana PWA), cza
 - Estetyka: kolorowa, przytulna, ilustracyjna; głębiny, bioluminescencja, kosmos; paleta lawenda, fiolet, zieleń, błękit. **Nie** beż, nude, minimalizm. W czytniku czytelność ma pierwszeństwo, estetyka w akcentach i w ustawieniach.
 - Na koniec każdej sesji dopisz handoff do `docs/handoffs/RRRR-MM-DD-NNN-slug.md`: co zrobione, decyzje, stan, następne kroki. Ma pozwolić następnej sesji ruszyć bez dopytywania.
 
-## Architektura (etap 1)
+## Architektura (etapy 1–2)
 
 Czysty HTML/CSS/JS. **Bez frameworka, bez kroku budowania, bez zależności npm** w aplikacji. Biblioteki, jeśli kiedyś potrzebne (np. do grafu), ładowane z CDN z przypiętą wersją.
 
 | Plik | Rola |
 |---|---|
 | `index.html` | szkielet: nagłówek z wyszukiwarką, widoki `home`, `results`, `reader` |
-| `style.css` | wygląd; wszystkie kolory, kroje i wymiary jako zmienne w `:root` (jasny + ciemny przez `prefers-color-scheme`) |
-| `app.js` | logika: API, czyszczenie treści, routing, trop, historia, przypięte |
+| `style.css` | wygląd; wszystkie kolory, kroje i wymiary jako zmienne; motywy jako `html[data-theme]` (zmierzch, glebina, mglawica), bez atrybutu = według `prefers-color-scheme` |
+| `app.js` | logika: API, czyszczenie treści, routing, trop, historia, przypięte, panel „Aa” (ustawienia → zmienne CSS na `<html>`, presety), przypisy jako dymki, zwijany infobox |
 | `manifest.webmanifest`, `sw.js`, `icons/` | instalacja jako PWA i cache plików aplikacji |
 
 - **API:** Action API `https://en.wikipedia.org/w/api.php` z `origin=*` i `formatversion=2` (zapytania anonimowe z przeglądarki, CORS). Podpowiedzi: `generator=prefixsearch` + `prop=description`. Wyszukiwanie: `generator=search`. Artykuł: `action=parse&prop=text|displaytitle&redirects=1&disableeditsection=1&disabletoc=1`. Starsze endpointy REST są częściowo wygaszane — trzymaj się Action API.
 - **Routing:** hash `#/wiki/Tytuł`; przycisk „wstecz” działa natywnie.
 - **`cleanArticle()`:** DOMParser; usuwa navboxy, ambox, przyciski edycji, `style`/`script`; zdejmuje inline `background`/`color` (psują ciemny motyw); linki `/wiki/` → trasa wewnętrzna z `data-title` (przestrzenie nie-hasłowe jak File:, Category: → zewnętrznie); `a.new` → `span.redlink`; linki `#…` → `data-anchor` z przewijaniem bez zmiany trasy.
 - **Trop:** `state.pendingFrom` ustawiane przy kliknięciu linku w artykule; `updateTrail()` dokleja krok, skraca przy powrocie albo zaczyna nowy trop (wejście z wyszukiwarki lub listy).
-- **Dane użytkowniczki:** wyłącznie w przeglądarce (localStorage, prefiks `zakamarki:`; klucze `trail`, `history` = {title, at, from} maks. 2000, `saved`). W etapie 3 migracja do IndexedDB. **Nigdy nie commituj danych użytkowniczki do repozytorium — jest publiczne.**
+- **Dane użytkowniczki:** wyłącznie w przeglądarce (localStorage, prefiks `zakamarki:`; klucze `trail`, `history` = {title, at, from} maks. 2000, `saved`, `reader`, `presets`). W etapie 3 migracja do IndexedDB. **Nigdy nie commituj danych użytkowniczki do repozytorium — jest publiczne.**
 
 ## Zasady techniczne
 

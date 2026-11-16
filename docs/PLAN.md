@@ -27,7 +27,7 @@ Mapa jej podgrafu (przeczytane + krawędź), rozłożona według sieci linków, 
 ## Etapy
 
 1. **Szkielet i hosting** — ✅ wyszukiwarka, czytnik, zapis tropu i historii, przypinanie, PWA.
-2. **Czytnik i typografia** — panel ustawień: tło, krój, kolor i wielkość czcionki, interlinia, szerokość kolumny, zapisywane presety; 2–3 kierunki wizualne do wyboru; przypisy jako dymki; zwijany infobox.
+2. **Czytnik i typografia** — ✅ panel ustawień: tło, krój, kolor i wielkość czcionki, interlinia, szerokość kolumny, zapisywane presety; 2–3 kierunki wizualne do wyboru; przypisy jako dymki; zwijany infobox.
 3. **Ślad** — IndexedDB; pomiar głębokości czytania; minimapa tropu; kolory linków według stanu (przeczytane / nieprzeczytane / węzeł); karta hasła pod przytrzymaniem linku (metryki + które przeczytane tu prowadzą); eksport i import kopii zapasowej.
 4. **Trop i Węzły** — z widocznym uzasadnieniem i wagami ustawianymi przez nią.
 5. **Statystyki i Atlas** — czas i słowa, głębokość, najdłuższe tropy, najgęstsze węzły, rozkład epok, miejsc i rodzajów haseł, niszowość w czasie, kalendarz aktywności, wzrost mapy.

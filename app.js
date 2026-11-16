@@ -1,4 +1,4 @@
-/* Zakamarki — etap 1: wyszukiwanie, czytnik, zapis tropu.
+/* Zakamarki — etap 2: wyszukiwanie, czytnik, zapis tropu, ustawienia czytania, przypisy jako dymki.
    Całość działa w przeglądarce telefonu. Serwer (GitHub Pages) tylko podaje pliki. */
 
 const API = 'https://en.wikipedia.org/w/api.php';
@@ -192,6 +192,17 @@ function cleanArticle(html) {
       a.rel = 'noopener';
     }
   });
+
+  // Infobox w zwijanym <details>; otwarty tylko na szerokim ekranie (stan ustawia openArticle).
+  root.querySelectorAll('table.infobox').forEach((table) => {
+    if (table.parentElement.closest('table.infobox')) return;   // zagnieżdżone zostają w środku
+    const details = doc.createElement('details');
+    details.className = 'infobox-wrap';
+    const summary = doc.createElement('summary');
+    summary.textContent = 'W skrócie';
+    table.replaceWith(details);
+    details.append(summary, table);
+  });
   return root.innerHTML;
 }
 
@@ -200,6 +211,7 @@ $('#article').addEventListener('click', (e) => {
   if (!a) return;
   if (a.dataset.anchor !== undefined) {
     e.preventDefault();
+    if (a.closest('sup.reference') && showNote(a, a.dataset.anchor)) return;
     const target = document.getElementById(a.dataset.anchor);
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
@@ -284,6 +296,8 @@ async function openArticle(requested) {
     $('#article-title').textContent = tmp.textContent || title;
     document.title = title + ' · Zakamarki';
     article.innerHTML = cleanArticle(p.text);
+    const wide = matchMedia('(min-width: 900px)').matches;
+    article.querySelectorAll('.infobox-wrap').forEach((d) => { d.open = wide; });
     status.hidden = true;
 
     const src = document.createElement('a');
@@ -308,6 +322,186 @@ window.addEventListener('scroll', () => {
   const total = art.offsetTop + art.offsetHeight - window.innerHeight;
   setProgress(total > 0 ? window.scrollY / total : 1);
 }, { passive: true });
+
+/* ——— ustawienia czytania (panel „Aa”) ———
+   Każde ustawienie to wartość jednej zmiennej CSS. applyReader() wpisuje je na <html>,
+   a style.css robi resztę. Motyw to atrybut data-theme (zestaw kolorów w style.css). */
+const THEMES = [
+  { id: 'auto', label: 'Jak telefon', swatch: ['#f3f0fb', '#0a1020'] },
+  { id: 'zmierzch', label: 'Lawendowy zmierzch', swatch: ['#f3f0fb', '#6a4fd6'] },
+  { id: 'glebina', label: 'Głębina', swatch: ['#0a1020', '#5fe3cf'] },
+  { id: 'mglawica', label: 'Mgławica', swatch: ['#160f2c', '#7fe0a8'] }
+];
+const FONTS = [
+  { id: 'literata', label: 'Literata', css: '"Literata", Georgia, serif' },
+  { id: 'source', label: 'Source Serif', css: '"Source Serif 4", Georgia, serif' },
+  { id: 'atkinson', label: 'Atkinson', css: '"Atkinson Hyperlegible", system-ui, sans-serif' },
+  { id: 'system', label: 'Systemowy', css: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' }
+];
+const TONES = [
+  { id: 'base', label: 'Wyraźny', css: 'var(--fg)' },
+  { id: 'warm', label: 'Ciepły', css: 'var(--fg-warm)' },
+  { id: 'soft', label: 'Przygaszony', css: 'var(--fg-soft)' }
+];
+const READER_DEFAULT = { theme: 'auto', font: 'literata', tone: 'base', size: 18, leading: 1.65, measure: 38 };
+const MAX_PRESETS = 8;
+
+state.reader = { ...READER_DEFAULT, ...store.get('reader', {}) };
+state.presets = store.get('presets', []);
+
+function applyReader() {
+  const r = state.reader;
+  const root = document.documentElement;
+  if (r.theme === 'auto') delete root.dataset.theme; else root.dataset.theme = r.theme;
+  root.style.setProperty('--font-body', (FONTS.find((f) => f.id === r.font) || FONTS[0]).css);
+  root.style.setProperty('--text', (TONES.find((t) => t.id === r.tone) || TONES[0]).css);
+  root.style.setProperty('--size', r.size + 'px');
+  root.style.setProperty('--leading', String(r.leading));
+  root.style.setProperty('--measure', r.measure + 'rem');
+  // Pasek systemowy telefonu w kolorze tła motywu.
+  const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
+  if (bg) document.querySelector('meta[name="theme-color"]').content = bg;
+}
+
+function setReader(patch) {
+  state.reader = { ...state.reader, ...patch };
+  store.set('reader', state.reader);
+  applyReader();
+  renderSheet();
+}
+
+function choiceButtons(el, items, key, decorate) {
+  el.replaceChildren(...items.map((item) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'choice';
+    b.setAttribute('aria-pressed', String(state.reader[key] === item.id));
+    if (decorate) decorate(b, item);
+    b.append(item.label);
+    b.addEventListener('click', () => setReader({ [key]: item.id }));
+    return b;
+  }));
+}
+
+function renderSheet() {
+  const r = state.reader;
+  choiceButtons($('#set-theme'), THEMES, 'theme', (b, t) => {
+    const s = document.createElement('span');
+    s.className = 'swatch';
+    s.style.background = `linear-gradient(135deg, ${t.swatch[0]} 50%, ${t.swatch[1]} 50%)`;
+    b.append(s);
+  });
+  choiceButtons($('#set-font'), FONTS, 'font', (b, f) => {
+    const s = document.createElement('span');
+    s.className = 'font-sample';
+    s.style.fontFamily = f.css;
+    s.textContent = 'Aa';
+    b.append(s);
+  });
+  choiceButtons($('#set-tone'), TONES, 'tone', (b, t) => {
+    const s = document.createElement('span');
+    s.className = 'swatch';
+    s.style.background = t.css;
+    b.append(s);
+  });
+  $('#set-size').value = r.size;        $('#out-size').textContent = r.size + ' px';
+  $('#set-leading').value = r.leading;  $('#out-leading').textContent = Number(r.leading).toFixed(2);
+  $('#set-measure').value = r.measure;  // Przybliżenie: przeciętny znak ma ok. pół wysokości kroju; 1 rem = 16 px.
+  $('#out-measure').textContent = `~${Math.round(r.measure * 32 / r.size)} znaków · tablet i komputer`;
+
+  const list = $('#presets');
+  list.replaceChildren(...state.presets.map((p, i) => {
+    const wrap = document.createElement('span');
+    wrap.className = 'preset';
+    const use = document.createElement('button');
+    use.type = 'button';
+    use.textContent = p.name;
+    use.addEventListener('click', () => setReader({ ...READER_DEFAULT, ...p.settings }));
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = '×';
+    del.setAttribute('aria-label', 'Usuń preset ' + p.name);
+    del.addEventListener('click', () => {
+      state.presets.splice(i, 1);
+      store.set('presets', state.presets);
+      renderSheet();
+    });
+    wrap.append(use, del);
+    return wrap;
+  }));
+}
+
+for (const key of ['size', 'leading', 'measure']) {
+  $('#set-' + key).addEventListener('input', (e) => setReader({ [key]: Number(e.target.value) }));
+}
+
+$('#preset-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = $('#preset-name').value.trim();
+  if (!name) return;
+  // Ta sama nazwa nadpisuje preset; nowe trafiają na początek, najstarsze wypadają po MAX_PRESETS.
+  state.presets = [{ name, settings: { ...state.reader } }, ...state.presets.filter((p) => p.name !== name)].slice(0, MAX_PRESETS);
+  store.set('presets', state.presets);
+  $('#preset-name').value = '';
+  $('#preset-name').blur();
+  renderSheet();
+});
+
+$('#sheet-reset').addEventListener('click', () => setReader({ ...READER_DEFAULT }));
+
+function toggleSheet(open) {
+  $('#sheet').hidden = !open;
+  $('#sheet-catcher').hidden = !open;
+  $('#aa').setAttribute('aria-expanded', String(open));
+  if (open) renderSheet();
+}
+$('#aa').addEventListener('click', () => toggleSheet($('#sheet').hidden));
+$('#sheet-done').addEventListener('click', () => toggleSheet(false));
+$('#sheet-catcher').addEventListener('click', () => toggleSheet(false));
+
+applyReader();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyReader);
+
+/* ——— przypisy jako dymki ——— */
+function showNote(anchorEl, id) {
+  const src = document.getElementById(id);
+  if (!src) return false;
+  const body = src.querySelector('.reference-text') || src;
+  const note = $('#note');
+  const num = document.createElement('span');
+  num.className = 'note-num';
+  num.textContent = anchorEl.textContent.replace(/[[\]]/g, '');
+  const content = body.cloneNode(true);
+  content.querySelectorAll('.mw-cite-backlink, [id]').forEach((n) => n.classList.contains('mw-cite-backlink') ? n.remove() : n.removeAttribute('id'));
+  note.replaceChildren(num, ...content.childNodes);
+  note.hidden = false;
+  noteScrollY = scrollY;
+
+  // Pod odnośnikiem, a gdy brakuje miejsca — nad nim. Poziomo w granicach ekranu.
+  const r = anchorEl.getBoundingClientRect();
+  const w = note.offsetWidth, h = note.offsetHeight, m = 16;
+  note.style.left = Math.max(m, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - m)) + 'px';
+  note.style.top = (r.bottom + 8 + h < innerHeight - m ? r.bottom + 8 : Math.max(m, r.top - 8 - h)) + 'px';
+  return true;
+}
+function hideNote() { $('#note').hidden = true; }
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#note') && !e.target.closest('sup.reference')) hideNote();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { hideNote(); toggleSheet(false); }
+});
+// Zamykamy dopiero po wyraźnym przewinięciu: na telefonie chowający się pasek adresu
+// też wywołuje „scroll”, a nie powinien zamykać dymka.
+let noteScrollY = 0;
+window.addEventListener('scroll', () => {
+  if (!$('#note').hidden && Math.abs(scrollY - noteScrollY) > 60) hideNote();
+}, { passive: true });
+$('#note').addEventListener('click', (e) => {
+  const a = e.target.closest('a');
+  if (a?.dataset.title) { state.pendingFrom = state.current; hideNote(); }
+});
 
 /* ——— routing: adres #/wiki/Tytuł otwiera artykuł; przycisk „wstecz” działa naturalnie ——— */
 function route() {

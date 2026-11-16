@@ -1,6 +1,6 @@
 # Zakamarki
 
-Osobisty czytnik angielskiej Wikipedii z zapisem tropów. Etap 1 z 7.
+Osobisty czytnik angielskiej Wikipedii z zapisem tropów. Etap 2 z 7.
 
 ## Co jest w środku
 
