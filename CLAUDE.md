@@ -12,9 +12,10 @@ Właścicielka czyta głównie na telefonie z Androidem (zainstalowana PWA), cza
 
 - Rozmowa **po polsku**: rzeczowo, gęsto, po koleżeńsku. Bez pochwał na wyrost i bez wypełniaczy.
 - **Ona podejmuje decyzje, Ty piszesz kod.** W każdym etapie: (1) wyjaśnij krótko jedno pojęcie techniczne, które ten etap wprowadza; (2) przedstaw decyzje do podjęcia (wygląd, nazwy, wagi w algorytmach, wybór statystyk) jako konkretne opcje z rekomendacją; (3) opcjonalnie zaproponuj małe zadanie do samodzielnego wykonania. Etap ma zająć jej 30–60 minut i kończyć się czymś działającym na telefonie.
+- **Każdą odpowiedź kończ rekomendacją, co najsensowniej zrobić dalej** — także gdy nie jest jasne, czy to już kolejny etap.
 - Prowadź z kierunkiem. Lepiej zaproponować i zrobić niż pytać o każdy szczegół; pytaj o rzeczy, które realnie zmieniają wynik.
 - **Nazwy funkcji opisują operację.** Bez nazw z „osobowością” czy żartem (odrzucone: „wessało”, „dzika karta”). Nazwa aplikacji: Zakamarki.
-- Estetyka: kolorowa, przytulna, ilustracyjna; głębiny, bioluminescencja, kosmos; paleta lawenda, fiolet, zieleń, błękit. **Nie** beż, nude, minimalizm. W czytniku czytelność ma pierwszeństwo, estetyka w akcentach i w ustawieniach.
+- Estetyka aplikacji: paleta **Szkliwo** (szklane lampy-grzybki: róż, pomarańcz, morska zieleń, musztarda, kobalt, śliwka, czerwień na różowawej bieli; nocą śliwkowy atrament). Moodboard: nasycone, ciepłe, retro, ilustracyjne (szkliwo, glina, oliwkowy welur, haft z koralików, kredki). **Nie** beż i minimalizm w interfejsie. **Czytnik jest wyjątkiem:** jego tła wybiera się pod oczy (ma astygmatyzm) — ciepła biel jak w interfejsie Claude, kontrast 10–13:1, bez czystej bieli i czerni; ciemne tła tylko szarobrązowe z tekstem w kolorze kości słoniowej. Paleta aplikacji i tło czytnika to **dwie niezależne warstwy**.
 - Na koniec każdej sesji dopisz handoff do `docs/handoffs/RRRR-MM-DD-NNN-slug.md`: co zrobione, decyzje, stan, następne kroki. Ma pozwolić następnej sesji ruszyć bez dopytywania.
 
 ## Architektura (etapy 1–2)
@@ -24,7 +25,7 @@ Czysty HTML/CSS/JS. **Bez frameworka, bez kroku budowania, bez zależności npm*
 | Plik | Rola |
 |---|---|
 | `index.html` | szkielet: nagłówek z wyszukiwarką, widoki `home`, `results`, `reader` |
-| `style.css` | wygląd; wszystkie kolory, kroje i wymiary jako zmienne; motywy jako `html[data-theme]` (zmierzch, glebina, mglawica), bez atrybutu = według `prefers-color-scheme` |
+| `style.css` | wygląd; wszystkie kolory, kroje i wymiary jako zmienne. Dwie warstwy: paleta aplikacji Szkliwo (`--bg`, `--fg`, `--glaze-*`; dzień/noc przez `html[data-scheme]`) i tło czytnika (`--page`, `--text`, `--page-*`; `html[data-page]`: papier, len, szalwia, lawenda, grafit, kakao). Ciemne tło czytnika przełącza paletę na nocną. |
 | `app.js` | logika: API, czyszczenie treści, routing, trop, historia, przypięte, panel „Aa” (ustawienia → zmienne CSS na `<html>`, presety), przypisy jako dymki, zwijany infobox |
 | `manifest.webmanifest`, `sw.js`, `icons/` | instalacja jako PWA i cache plików aplikacji |
 

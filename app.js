@@ -48,6 +48,7 @@ async function api(params) {
 /* ——— widoki ——— */
 function show(view) {
   for (const v of ['home', 'results', 'reader']) $('#view-' + v).hidden = v !== view;
+  document.documentElement.dataset.view = view;   // w czytniku tłem strony jest kartka
 }
 
 function linkItem(title, desc) {
@@ -324,37 +325,53 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 /* ——— ustawienia czytania (panel „Aa”) ———
-   Każde ustawienie to wartość jednej zmiennej CSS. applyReader() wpisuje je na <html>,
-   a style.css robi resztę. Motyw to atrybut data-theme (zestaw kolorów w style.css). */
-const THEMES = [
-  { id: 'auto', label: 'Jak telefon', swatch: ['#f3f0fb', '#0a1020'] },
-  { id: 'zmierzch', label: 'Lawendowy zmierzch', swatch: ['#f3f0fb', '#6a4fd6'] },
-  { id: 'glebina', label: 'Głębina', swatch: ['#0a1020', '#5fe3cf'] },
-  { id: 'mglawica', label: 'Mgławica', swatch: ['#160f2c', '#7fe0a8'] }
+   Każde ustawienie to wartość jednej zmiennej CSS albo atrybutu na <html>; applyReader()
+   je wpisuje, a style.css robi resztę. Tło czytnika (data-page) decyduje też, czy paleta
+   aplikacji jest w wersji dziennej czy nocnej (data-scheme). */
+const PAGES = [
+  { id: 'auto', label: 'Jak telefon', swatch: ['#faf9f5', '#262624'] },
+  { id: 'papier', label: 'Papier', swatch: ['#faf9f5', '#2d2c28'] },
+  { id: 'len', label: 'Len', swatch: ['#f3eee3', '#34302a'] },
+  { id: 'szalwia', label: 'Szałwia', swatch: ['#e9ede4', '#283027'] },
+  { id: 'lawenda', label: 'Lawendowa mgła', swatch: ['#efecf4', '#2c2938'] },
+  { id: 'grafit', label: 'Grafit', swatch: ['#262624', '#d8d5cb'], dark: true },
+  { id: 'kakao', label: 'Kakao', swatch: ['#2b2321', '#e3d5c6'], dark: true }
 ];
 const FONTS = [
   { id: 'literata', label: 'Literata', css: '"Literata", Georgia, serif' },
   { id: 'source', label: 'Source Serif', css: '"Source Serif 4", Georgia, serif' },
-  { id: 'atkinson', label: 'Atkinson', css: '"Atkinson Hyperlegible", system-ui, sans-serif' },
+  { id: 'atkinson', label: 'Atkinson', css: '"Atkinson Hyperlegible Next", system-ui, sans-serif' },
   { id: 'system', label: 'Systemowy', css: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' }
 ];
-const TONES = [
-  { id: 'base', label: 'Wyraźny', css: 'var(--fg)' },
-  { id: 'warm', label: 'Ciepły', css: 'var(--fg-warm)' },
-  { id: 'soft', label: 'Przygaszony', css: 'var(--fg-soft)' }
+// Grubość kreski: przy astygmatyzmie odrobinę grubsze litery mniej się rozmywają, zwłaszcza na ciemnym tle.
+const WEIGHTS = [
+  { id: 360, label: 'Lżejsza' },
+  { id: 400, label: 'Zwykła' },
+  { id: 450, label: 'Pełniejsza' },
+  { id: 500, label: 'Mocna' }
 ];
-const READER_DEFAULT = { theme: 'auto', font: 'literata', tone: 'base', size: 18, leading: 1.65, measure: 38 };
+const READER_DEFAULT = { page: 'auto', font: 'literata', weight: 400, size: 18, leading: 1.65, measure: 38 };
 const MAX_PRESETS = 8;
 
 state.reader = { ...READER_DEFAULT, ...store.get('reader', {}) };
 state.presets = store.get('presets', []);
 
+// „Jak telefon” = Papier w dzień, Grafit w trybie ciemnym. To samo liczy skrypt w <head>.
+function resolvePage(id) {
+  if (!PAGES.some((p) => p.id === id) || id === 'auto') {
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'grafit' : 'papier';
+  }
+  return id;
+}
+
 function applyReader() {
   const r = state.reader;
   const root = document.documentElement;
-  if (r.theme === 'auto') delete root.dataset.theme; else root.dataset.theme = r.theme;
+  const page = resolvePage(r.page);
+  root.dataset.page = page;
+  root.dataset.scheme = PAGES.find((p) => p.id === page).dark ? 'dark' : 'light';
   root.style.setProperty('--font-body', (FONTS.find((f) => f.id === r.font) || FONTS[0]).css);
-  root.style.setProperty('--text', (TONES.find((t) => t.id === r.tone) || TONES[0]).css);
+  root.style.setProperty('--weight', String(r.weight));
   root.style.setProperty('--size', r.size + 'px');
   root.style.setProperty('--leading', String(r.leading));
   root.style.setProperty('--measure', r.measure + 'rem');
@@ -385,10 +402,10 @@ function choiceButtons(el, items, key, decorate) {
 
 function renderSheet() {
   const r = state.reader;
-  choiceButtons($('#set-theme'), THEMES, 'theme', (b, t) => {
+  choiceButtons($('#set-page'), PAGES, 'page', (b, p) => {
     const s = document.createElement('span');
     s.className = 'swatch';
-    s.style.background = `linear-gradient(135deg, ${t.swatch[0]} 50%, ${t.swatch[1]} 50%)`;
+    s.style.background = `radial-gradient(circle, ${p.swatch[1]} 0 28%, ${p.swatch[0]} 31%)`;   // kropka tekstu na tle
     b.append(s);
   });
   choiceButtons($('#set-font'), FONTS, 'font', (b, f) => {
@@ -398,10 +415,11 @@ function renderSheet() {
     s.textContent = 'Aa';
     b.append(s);
   });
-  choiceButtons($('#set-tone'), TONES, 'tone', (b, t) => {
+  choiceButtons($('#set-weight'), WEIGHTS, 'weight', (b, w) => {
     const s = document.createElement('span');
-    s.className = 'swatch';
-    s.style.background = t.css;
+    s.className = 'font-sample';
+    s.style.fontWeight = w.id;
+    s.textContent = 'Aa';
     b.append(s);
   });
   $('#set-size').value = r.size;        $('#out-size').textContent = r.size + ' px';

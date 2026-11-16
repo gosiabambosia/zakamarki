@@ -1,6 +1,6 @@
 // Service worker: trzyma pliki aplikacji w pamięci telefonu, żeby otwierała się natychmiast
 // (także offline). Zapytania do Wikipedii przechodzą bez zmian.
-const CACHE = 'zakamarki-v3';
+const CACHE = 'zakamarki-v4';
 const SHELL = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 

@@ -4,20 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Zakamarki</title>
-  <meta name="theme-color" content="#0d1326">
+  <meta name="theme-color" content="#fbf1ee">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Trzy kroje w jednym arkuszu; przeglądarka pobiera pliki fontu dopiero, gdy krój jest użyty. -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+  <!-- Trzy kroje o płynnej grubości (wersje zmienne) w jednym arkuszu; przeglądarka pobiera
+       plik fontu dopiero, gdy krój jest użyty. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,200..800;1,200..800&family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap">
   <link rel="stylesheet" href="style.css">
   <script>
-    // Motyw ustawiony przed pierwszym rysowaniem strony, żeby nie mignął domyślny.
+    // Tło czytnika i dzienna/nocna wersja palety ustawione przed pierwszym rysowaniem,
+    // żeby nie mignęły domyślne. Ta sama logika co resolvePage() w app.js.
     try {
       var r = JSON.parse(localStorage.getItem('zakamarki:reader') || '{}');
-      if (r.theme && r.theme !== 'auto') document.documentElement.dataset.theme = r.theme;
+      var dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      var page = !r.page || r.page === 'auto' ? (dark ? 'grafit' : 'papier') : r.page;
+      document.documentElement.dataset.page = page;
+      document.documentElement.dataset.scheme = (page === 'grafit' || page === 'kakao') ? 'dark' : 'light';
     } catch (e) {}
   </script>
 </head>
@@ -75,9 +80,9 @@
         <button id="sheet-done" class="sheet-done" type="button">Gotowe</button>
       </div>
 
-      <div class="field"><div class="field-label">Motyw</div><div class="choices" id="set-theme"></div></div>
+      <div class="field"><div class="field-label">Tło</div><div class="choices" id="set-page"></div></div>
       <div class="field"><div class="field-label">Krój</div><div class="choices" id="set-font"></div></div>
-      <div class="field"><div class="field-label">Kolor tekstu</div><div class="choices" id="set-tone"></div></div>
+      <div class="field"><div class="field-label">Grubość</div><div class="choices" id="set-weight"></div></div>
       <div class="field">
         <label class="field-label" for="set-size">Wielkość <output id="out-size"></output></label>
         <input id="set-size" type="range" min="14" max="26" step="1">
