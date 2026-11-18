@@ -14,20 +14,110 @@ const REMOVE = [
   '.mw-authority-control', '.catlinks', 'style', 'link', 'script', 'meta'
 ].join(',');
 
-/* ——— pamięć w przeglądarce ——— */
+/* ——— pamięć w przeglądarce: IndexedDB ———
+   Baza „zakamarki” ma dwa magazyny: „kv” (klucz → wartość: tropy, przypięte, ustawienia, presety,
+   miniatury) i „history” (każde otwarcie hasła jako osobny wpis, dopisywany, nie przepisywany).
+   Przy starcie wszystko ładuje się raz do pamięci (store.cache), więc odczyty są natychmiastowe,
+   a zapisy idą do bazy w tle. Pierwsze uruchomienie przenosi dane z localStorage (zostają tam
+   nietknięte jako kopia). Bez IndexedDB (np. bardzo stara przeglądarka) działa jak dawniej
+   na localStorage. Ustawienia czytnika zapisujemy też w localStorage, bo czyta je skrypt
+   w <head> przed pierwszym rysowaniem. */
+const LS_PREFIX = 'zakamarki:';
+const LS_HISTORY_MAX = 2000;            // tylko w trybie zapasowym; IndexedDB nie ma tego limitu
+const lsGet = (key) => { try { const v = localStorage.getItem(LS_PREFIX + key); return v ? JSON.parse(v) : undefined; } catch { return undefined; } };
+const lsSet = (key, value) => { try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(value)); } catch {} };
+
+function lsAll() {
+  const out = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k.startsWith(LS_PREFIX)) { const v = lsGet(k.slice(LS_PREFIX.length)); if (v !== undefined) out[k.slice(LS_PREFIX.length)] = v; }
+    }
+  } catch {}
+  return out;
+}
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) { reject(new Error('brak IndexedDB')); return; }
+    const req = indexedDB.open('zakamarki', 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      db.createObjectStore('kv');
+      db.createObjectStore('history', { autoIncrement: true }).createIndex('at', 'at');
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// Jedna transakcja na jeden lub kilka magazynów; obietnica spełnia się po zatwierdzeniu zapisu.
+function tx(names, mode, fn) {
+  return new Promise((resolve, reject) => {
+    const t = store.db.transaction(names, mode);
+    const stores = [].concat(names).map((n) => t.objectStore(n));
+    const req = fn(...stores);
+    t.oncomplete = () => resolve(req?.result);
+    t.onerror = t.onabort = () => reject(t.error);
+  });
+}
+
 const store = {
-  get(key, fallback) {
-    try { const v = localStorage.getItem('zakamarki:' + key); return v ? JSON.parse(v) : fallback; }
-    catch { return fallback; }
-  },
+  db: null,
+  cache: {},
+  get(key, fallback) { return key in this.cache ? this.cache[key] : fallback; },
   set(key, value) {
-    try { localStorage.setItem('zakamarki:' + key, JSON.stringify(value)); } catch {}
+    this.cache[key] = value;
+    if (key === 'reader' || !this.db) lsSet(key, key === 'history' ? value.slice(-LS_HISTORY_MAX) : value);
+    if (this.db) {
+      if (key === 'history') this.replaceHistory(value);
+      else tx('kv', 'readwrite', (kv) => { kv.put(value, key); }).catch(() => lsSet(key, value));
+    }
+  },
+  // Nowe otwarcie hasła: w IndexedDB dopisujemy jeden wpis zamiast przepisywać całą historię.
+  addHistory(entry, list) {
+    this.cache.history = list;
+    if (this.db) tx('history', 'readwrite', (h) => { h.add(entry); }).catch(() => {});
+    else lsSet('history', list.slice(-LS_HISTORY_MAX));
+  },
+  replaceHistory(list) {
+    tx('history', 'readwrite', (h) => { h.clear(); for (const e of list) h.add(e); }).catch(() => {});
   }
 };
 
+async function migrateFromLocalStorage() {
+  const ls = lsAll();
+  const at = Date.now();
+  await tx(['kv', 'history'], 'readwrite', (kv, h) => {
+    for (const [k, v] of Object.entries(ls)) if (k !== 'history') kv.put(v, k);
+    for (const e of Array.isArray(ls.history) ? ls.history : []) h.add(e);
+    kv.put(at, 'migratedAt');
+  });
+  Object.assign(store.cache, ls, { migratedAt: at });
+}
+
+store.ready = (async () => {
+  try {
+    store.db = await openDB();
+    const [keys, values] = await Promise.all([
+      tx('kv', 'readonly', (kv) => kv.getAllKeys()),
+      tx('kv', 'readonly', (kv) => kv.getAll())
+    ]);
+    keys.forEach((k, i) => { store.cache[k] = values[i]; });
+    if (!('migratedAt' in store.cache)) await migrateFromLocalStorage();
+    store.cache.history = await tx('history', 'readonly', (h) => h.getAll());
+  } catch {
+    store.db = null;                   // tryb zapasowy: localStorage jak w etapach 1–2
+    store.cache = lsAll();
+  }
+})();
+
 const state = {
-  history: store.get('history', []),      // każde otwarcie: {title, at, from, j?}
-  saved: store.get('saved', ['Garden city movement']),
+  history: [],                            // każde otwarcie: {title, at, from, j?}
+  saved: [],
+  trails: [],
+  thumbs: {},
   current: null,
   pendingFrom: null,                      // ustawiane, gdy klikasz link w artykule
   pendingResume: null,                    // id tropu, gdy wracasz do niego z ekranu startowego
@@ -104,7 +194,6 @@ function loadTrails() {
   store.set('trails', state.trails);
   return state.trails;
 }
-state.trails = loadTrails();
 
 // „14 min temu”, „wczoraj”…
 function ago(at) {
@@ -160,7 +249,6 @@ function plural(n, one, few, many) {
 
 /* Miniatury haseł (zdjęcie główne z prop=pageimages). Zapamiętujemy je w przeglądarce,
    także brak zdjęcia (null), żeby nie pytać Wikipedii drugi raz o to samo. */
-state.thumbs = store.get('thumbs', {});
 async function loadThumbs(titles) {
   const missing = titles.filter((t) => !(t in state.thumbs)).slice(0, 50);
   if (missing.length) {
@@ -353,7 +441,7 @@ function mergeBackup(d) {
   const key = (h) => h.title + '|' + h.at;
   const hist = new Map(state.history.map((h) => [key(h), h]));
   for (const h of d.history || []) if (h && typeof h.title === 'string' && Number.isFinite(h.at)) hist.set(key(h), h);
-  state.history = [...hist.values()].sort((a, b) => a.at - b.at).slice(-2000);
+  state.history = [...hist.values()].sort((a, b) => a.at - b.at);
 
   const trails = new Map(state.trails.map((T) => [T.id, T]));
   for (const T of d.trails || []) {
@@ -541,8 +629,7 @@ function updateTrail(title) {
   const entry = { title, at: Date.now(), from: from || (jump ? state.current : null) };
   if (jump) entry.j = 1;
   state.history.push(entry);
-  if (state.history.length > 2000) state.history = state.history.slice(-2000);
-  store.set('history', state.history);
+  store.addHistory(entry, state.history);
 }
 
 // Trop nad artykułem: kroki przed bieżącym to linki, bieżący wyróżniony, kroki „przed tobą”
@@ -682,8 +769,8 @@ const WEIGHTS = [
 const READER_DEFAULT = { page: 'auto', font: 'literata', weight: 400, size: 18, leading: 1.65, measure: 38 };
 const MAX_PRESETS = 8;
 
-state.reader = { ...READER_DEFAULT, ...store.get('reader', {}) };
-state.presets = store.get('presets', []);
+state.reader = { ...READER_DEFAULT, ...(lsGet('reader') || {}) };   // od razu, zanim wstanie baza
+state.presets = [];
 
 // „Jak telefon” = Papier w dzień, Grafit w trybie ciemnym. To samo liczy skrypt w <head>.
 function resolvePage(id) {
@@ -840,7 +927,6 @@ $('#aa').addEventListener('click', () => toggleSheet($('#sheet').hidden));
 $('#sheet-done').addEventListener('click', () => toggleSheet(false));
 $('#sheet-catcher').addEventListener('click', () => toggleSheet(false));
 
-applyReader();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyReader);
 
 /* ——— przypisy jako dymki ——— */
@@ -892,8 +978,18 @@ function route() {
   if (m) { toggleSearch(false); openArticle(decodeTitle(m[1])); }
   else renderHome();
 }
-window.addEventListener('hashchange', route);
-route();
+// Start: najpierw dane z bazy, potem pierwszy widok.
+store.ready.then(() => {
+  state.history = store.get('history', []);
+  state.saved = store.get('saved', ['Garden city movement']);
+  state.thumbs = store.get('thumbs', {});
+  state.reader = { ...READER_DEFAULT, ...store.get('reader', {}) };
+  state.presets = store.get('presets', []);
+  state.trails = loadTrails();
+  applyReader();
+  window.addEventListener('hashchange', route);
+  route();
+});
 
 /* ——— instalacja jako aplikacja i trwałość danych ——— */
 if ('serviceWorker' in navigator) {
