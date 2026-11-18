@@ -18,7 +18,7 @@ Czytanie to rosnący podgraf Wikipedii z trzema strefami: **przeczytane**, **kra
 - **Pochodne:** *ukryty klejnot* = jakość ÷ popularność; *heterogeniczność* = odsetek linków wychodzących do innych tematów niż temat hasła; *rozgałęzialność* = liczba linków do obszernych haseł.
 - **Z Wikidata (jako filtry):** epoka, miejsce, rodzaj hasła (osoba, ruch, dzieło, obiekt, miejsce, zdarzenie, organizacja).
 - **Clickstream (późna faza, opcjonalnie):** comiesięczne zrzuty rzeczywistych przejść między hasłami; wielogigabajtowe, przetwarzane raz offline.
-- **Jej ślad:** stany czytania mierzone automatycznie (akapity na ekranie): *otwarte / przejrzane / doczytane*; ręcznie tylko *Przypnij* i zakreślenia. Tropy z odgałęzieniami i skokami z wyszukiwarki (archiwum tropów od 2026-11-18).
+- **Jej ślad:** stany czytania mierzone automatycznie (akapity na ekranie): *otwarte / przejrzane / doczytane*; ręcznie tylko *Na później* i zakreślenia. Wizyty z czasem aktywnego czytania i liczbą nowo przeczytanych akapitów (pod statystyki). Tropy z odgałęzieniami i skokami z wyszukiwarki (archiwum tropów od 2026-11-18).
 
 ## Atlas (inspiracja: Film Atlas z Toolboxd)
 
@@ -28,18 +28,18 @@ Mapa jej podgrafu (przeczytane + krawędź), rozłożona według sieci linków, 
 
 1. **Szkielet i hosting** — ✅ wyszukiwarka, czytnik, zapis tropu i historii, przypinanie, PWA.
 2. **Czytnik i typografia** — ✅ panel ustawień: tło, krój, kolor i wielkość czcionki, interlinia, szerokość kolumny, zapisywane presety; 2–3 kierunki wizualne do wyboru; przypisy jako dymki; zwijany infobox.
-3. **Ślad** — w toku.
-   1. ✅ Eksport i import kopii zapasowej (JSON; import łączy, nic nie usuwa).
-   2. ✅ IndexedDB (magazyny `kv` i `history`; migracja z localStorage).
-   3. Pomiar głębokości czytania — **decyzja: akapity na ekranie.** Akapit liczy się jako przeczytany, gdy był na ekranie ≥ 2 s przy aktywnej karcie (bez przypisów, „See also”, „References”). *Przejrzane* ≥ 15% akapitów, *doczytane* ≥ 75%. Uzasadnienie widoczne („34 z 41 akapitów”); zapamiętany pierwszy nieprzeczytany akapit = miejsce powrotu.
-   4. Linki według stanu — **decyzja: L2, kropka po linku**: podkreślenie bez zmian, przejrzane = pusty krążek po słowie, doczytane = pełny krążek + przygaszony kolor (`.drafts/linki.html`). Węzły dostaną później własny znak w tym systemie. Do tego minimapa tropu.
-   5. Karta hasła pod przytrzymaniem linku (metryki + które przeczytane tu prowadzą).
-   - Ekran startowy po pomiarze — **decyzja: trzy półki**: *Przypięte* = chcę przeczytać (tylko ręcznie), *Czytam* = przejrzane i niedoczytane („Czytaj dalej” = najnowsze z nich, otwiera się na pierwszym nieprzeczytanym akapicie), *Przeczytane* = doczytane. Hasła tylko otwarte nigdzie nie wskakują. **Półki muszą się różnić bez słów** (kształt, ułożenie, poziom wypełnienia), warianty na żywo przy budowie.
-3b. **Zakreślenia i polski** (mini-etap między 3 a 4, decyzja 2026-11-18) — po IndexedDB, przed Węzłami, żeby Węzły od razu z nich korzystały.
+3. **Ślad** — ✅ (2026-11-18, `zakamarki-v12`).
+   1. ✅ Eksport i import kopii zapasowej (JSON; import łączy, nic nie usuwa; wersja pliku 2 z `reads`, import przyjmuje v1).
+   2. ✅ IndexedDB (v1: `kv`, `history`; v2: `reads`).
+   3. ✅ Pomiar głębokości czytania — akapity na ekranie ≥ 2 s przy aktywnej karcie (bez przypisów, „See also”, „References”, tabel, infoboksu). *Przejrzane* ≥ 15%, *doczytane* ≥ 75%. Uzasadnienie „22/41” na okładkach i „24 z 62 akapitów” w „Czytaj dalej”; miejsce powrotu = pierwszy nieprzeczytany akapit (pojedyncze dziury pomijane) z różową zakładką. Historia liczy **wizyty** (przeładowanie nie dubluje wpisu).
+   4. ✅ Linki według stanu (L2: pusty / pełny krążek, przekierowania przez `generator=links`), mapa tropu jak linia metra (arkusz z czytnika) i kreska tropu w karcie Tropy.
+   5. ✅ Karta hasła pod przytrzymaniem linku: mała, bez przyciemniania — opis, dwa zdania wstępu, słowa i czas czytania, stan, „Linkują tu” z przeczytanych, Otwórz / Na później.
+   - Ekran startowy: **trzy półki z nazwami** — *Czytam* (okładki napełnione szkłem do poziomu akapitów, na desce), *Na później* (ręcznie; musztardowa tafla plexi), *Przeczytane* (liliowa tafla); stuknięcie rozwija siatkę. Hasło z Na później przechodzi dalej, gdy zaczniesz czytać. Tylko otwarte nie trafiają na półki.
+3b. **Zakreślenia i polski** (mini-etap między 3 a 4, decyzja 2026-11-18) — następny. Makieta `.drafts/zakreslenia.html`; otwarte decyzje: pasek zaznaczenia (rek. na dole), wygląd zakreślenia (rek. marker), miejsce ekranu (rek. pływający dolny pasek, na nim później Węzły i Statystyki), frazy (rek. przycisk „Tłumacz frazę” → Tłumacz Google). Szczegóły i plan kodu: handoff 007.
    - Zakreślenia w osobnym magazynie `highlights` (tekst, hasło, trop, linki w zaznaczeniu, kolor, czas). Grupowanie w trzech warstwach: **automatycznie po haśle i tropie** (ekran „Zakreślenia” po tropach), **automatycznie po wspólnych linkach** (zakreślenia z różnych haseł wskazujące na to samo hasło → kandydaci na Węzły), **ręcznie kolorem zakreślacza** (4–5 kolorów palety, jedno stuknięcie, bez słów). Bez tagów i kolekcji wpisywanych słowami.
    - **Chip „PL”** w czytniku (langlinks → polska wersja hasła otwierana w tym samym czytniku; język Wikipedii jako parametr, nie stała).
    - **Dymek ze słownika**: zaznaczone pojedyncze słowo → polskie znaczenia z pl.wiktionary (sekcja `{{język angielski}}` → `{{znaczenia}}`), w dymku jak przypis.
-   - Odrzucone: Translator API w Chrome (brak na Androidzie), MinT (API tylko dla produktów Wikimedia), zewnętrzne tłumacze (klucze, prywatność). Całe frazy: systemowe „Tłumacz” Androida (bez kodu).
+   - Odrzucone: Translator API w Chrome (brak na Androidzie), MinT (API tylko dla produktów Wikimedia), zewnętrzne tłumacze z kluczami. Systemowego „Tłumacz” w menu zaznaczenia w PWA nie ma (test 2026-11-18).
 4. **Trop i Węzły** — z widocznym uzasadnieniem i wagami ustawianymi przez nią.
 5. **Statystyki i Atlas** — czas i słowa, głębokość, najdłuższe tropy, najgęstsze węzły, rozkład epok, miejsc i rodzajów haseł, niszowość w czasie, kalendarz aktywności, wzrost mapy.
 6. **Przejścia, Osobliwości, Parametry.**

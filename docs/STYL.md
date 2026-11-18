@@ -20,6 +20,7 @@ Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z tre
 - **Przetwarza w dużej części pozawerbalnie.** Słowne nazwy opcji („Lżejsza”, „Pełniejsza”, „Jak telefon”, „Lawendowa mgła”) są dla niej przytłaczające i nieintuicyjne. Opcje pokazuj **próbką** (kolor, „Aa” w danym kroju i grubości, ikona), nazwy zostaw tylko w `aria-label`/`title`.
 - Podobnie brzmiące etykiety („Czytaj dalej” / „Chcę przeczytać”) mylą się — rozróżniaj stany **kształtem, położeniem, wypełnieniem**, nie tylko słowem. Mile widziane rozwiązania unikatowe, „szyte na miarę”, czerpiące z referencji.
 - Nie lubi zdań-pytań i tekstów, które „brzmią jak AI” („Dokąd dziś w głąb?” — odrzucone).
+- **Ale czytelność ponad pozawerbalność (2026-11-18):** projektuj z myślą o dalszym rozwoju — kategorie muszą być czytelne i wygodne, żeby nie pogubić się po dodaniu kolejnych funkcji. Jeśli sygnał bez słów robi chaos, wygrywa **prosta nazwa**. Jedno słowo na jeden stan i to samo wszędzie (półka, przycisk w czytniku, statystyki): *Czytam · Na później · Przeczytane*.
 
 ## Czego nie chce
 
@@ -34,7 +35,7 @@ Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z tre
 ### Dwie warstwy kolorów
 1. **Paleta aplikacji „Krem”** — nagłówek, ekran startowy, przyciski, panele.
    - Baza: krem `#f1e7dc`, karty `#fff8f0`, atrament `#22191f` (tekst i czarne pigułki).
-   - Akcenty (`--pop-*`): róż `#f6b3d3`, musztarda `#f2c230`, limonka `#c9dd6b`, kobalt `#2d54e0`, pomarańcz `#e8622c`.
+   - Akcenty (`--pop-*`): róż `#f6b3d3`, musztarda `#f2c230`, limonka `#c9dd6b`, kobalt `#2d54e0`, pomarańcz `#e8622c`, **liliowy `#b48cf0`** (fiolet ze Szkliwa w wersji pastelowej, od 2026-11-18: półka Przeczytane, karty bez zdjęcia).
    - Nocą: ciepły atrament `#1f1a1c`, pastele bez zmian, atramentowe pigułki odwrócone na krem.
    - Akcenty dawkuj: jeden–dwa na ekran plus miniatury. Tekst na jasnym akcencie — atrament; na kobalcie/pomarańczu/atramencie — krem.
 2. **Tło czytnika** — tylko kartka z tekstem, wybierane pod oczy (astygmatyzm): Papier, Len, Szałwia, Lawendowa mgła, Grafit, Kakao. Kontrast 10–13:1 zamiast 21:1, bez czystej bieli i czerni, ciemne tła szarobrązowe z tekstem w kolorze kości słoniowej. Ciemne tło przełącza paletę aplikacji na nocną.
@@ -47,10 +48,14 @@ Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z tre
 ### Wzorce UI
 - Ekran startowy zaczyna się od **wielkiej kobaltowej liczby dnia** („7 haseł dziś”, obok druga linijka „2 tropy · 214 w sumie”; obie linijki wyrównane do dołu liczby), pod nią **karta „Czytaj dalej”**: miniatura na całą wysokość z lewej (jak okładka, nie wklejka), tytuł, „14 min temu · 4. krok tropu”, okrągła atramentowa strzałka. Każda liczba musi być pomiarem — nigdy dekoracją. Odrzucone: duży tytuł + mała miniatura obok („jak źle wstawione zdjęcie w Wordzie”), „N kroków od hasła”.
 - **Panel „Aa”**: na wierzchu kafle presetów w ich kolorach, kroju i grubości (nazwy presetów są jej, więc zostają); pod „Dostosuj” rzędy próbek bez podpisów: tła (kafel „Aa” w kolorze tekstu na tle; „Jak telefon” = pół jasny, pół ciemny), kroje („Ag”), grubości („Aa”), suwaki z małą/dużą literą i ikoną interlinii.
-- **Pływające przyciski w czytniku** (pojawiają się przy przewijaniu w górę): różowa pigułka „← poprzedni krok tropu” z nazwą hasła i okrągły atramentowy „↑”.
+- **Pływające przyciski w czytniku (P2):** od 300 px stale różowe kółko „←” w lewym dolnym rogu; przewijanie w górę rozwija je w pigułkę z nazwą poprzedniego kroku i pokazuje okrągły atramentowy „↑”.
+- **Trzy półki na starcie (W7 + O1):** nad półką nazwa, liczba i okrągła strzałka (rozwija siatkę). *Czytam*: okładki napełnione kolorowym szkłem do poziomu przeczytanych akapitów (lampy-grzybki), liczba „22/41” na szkle, deska pod okładkami, tytuł pod okładką. *Na później* (musztarda) i *Przeczytane* (liliowy): okładki z miękkim cieniem za matową taflą plexi, tytuł na szkle, **bez śrub**. Odrzucone: szafka o trzech poziomach, ściana z pinezkami + stos grzbietów, okładki w bałaganie, różne wysokości.
+- **Zakładka powrotu:** różowy pionowy znaczek z obrysem w kolorze tekstu na marginesie przy pierwszym nieprzeczytanym akapicie.
+- **Mapa tropu:** arkusz od dołu jak linia metra (główna linia, odgałęzienia w bok, skok przerywany, znaki stanu jak przy linkach); w karcie Tropy pod każdym tropem rząd kropek.
+- **Karta hasła pod przytrzymaniem linku:** mała (≤ 46% ekranu), bez przyciemniania, znika po stuknięciu obok; mała miniatura, opis, dwa zdania wstępu, słowa i czas czytania, Otwórz / Na później. Bez liczby języków i wyświetleń (nie chce).
 - **Trop nad artykułem**: bieżący krok różowy, kroki „przed tobą” (po cofnięciu) przygaszone, skok z wyszukiwarki z przerywaną ramką.
-- **Linki według stanu hasła**: kropka po linku — pusty krążek = przejrzane, pełny + przygaszony kolor = doczytane (wariant L2).
-- **Miniatury haseł jako okładki** (zdjęcie główne z Wikipedii) na **półce z kolorowego szkła**; brak zdjęcia → karta w kolorze akcentu z tytułem na dole (lubi te losowe kolory z palety i wygląd „koszyka”).
+- **Linki według stanu hasła** (wdrożone): kropka po linku — pusty krążek = przejrzane, pełny + przygaszony kolor = doczytane (wariant L2). Te same znaki na mapie tropu i w kresce tropu.
+- **Miniatury haseł jako okładki** (zdjęcie główne z Wikipedii); brak zdjęcia → karta w kolorze akcentu z pierwszą literą (lubi te losowe kolory z palety).
 - Zdjęcia w artykule **na środku kolumny**, nie przy lewej krawędzi.
 - **Numerowane listy 0.1, 0.2…** dla tropu i kolejności; bieżący element wyróżniony akcentem.
 - **Karty** `#fff8f0` z dużym zaokrągleniem (ok. 22 px); **pigułki** (czarna = akcja główna, kolorowe = chipy z licznikami); **okrągłe przyciski** z ikoną.
