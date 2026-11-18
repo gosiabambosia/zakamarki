@@ -15,6 +15,12 @@ Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z tre
 - **Inspiracje UI:** aplikacje do czytania i biblioteki: wielki ciasny grotesk jako bohater ekranu („You Have 12 New Books”), okładki stojące na półkach z kolorowego szkła, numerowane listy 0.1 / 0.2, pigułki z licznikami, wielkie liczby, pływające przyciski, aplikacja z blobami z buźkami na kremowym tle.
 - **Inspiracje ikon/grafik:** doodle piórkiem (drżąca kreska, rumieńce, postaci z minimum rysów, stemple: kremowa sylwetka na pełnym kolorze), wycinanki w stylu Matisse'a z buźkami, gwaszowe kafle z kwiatami i iskrami.
 
+## Jak przetwarza (ważne przy każdym ekranie)
+
+- **Przetwarza w dużej części pozawerbalnie.** Słowne nazwy opcji („Lżejsza”, „Pełniejsza”, „Jak telefon”, „Lawendowa mgła”) są dla niej przytłaczające i nieintuicyjne. Opcje pokazuj **próbką** (kolor, „Aa” w danym kroju i grubości, ikona), nazwy zostaw tylko w `aria-label`/`title`.
+- Podobnie brzmiące etykiety („Czytaj dalej” / „Chcę przeczytać”) mylą się — rozróżniaj stany **kształtem, położeniem, wypełnieniem**, nie tylko słowem. Mile widziane rozwiązania unikatowe, „szyte na miarę”, czerpiące z referencji.
+- Nie lubi zdań-pytań i tekstów, które „brzmią jak AI” („Dokąd dziś w głąb?” — odrzucone).
+
 ## Czego nie chce
 
 - Beż-minimalizmu i „nude” w interfejsie (czytnik to wyjątek, patrz niżej).
@@ -39,8 +45,13 @@ Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z tre
 - W czytniku kroje do wyboru: Literata (domyślna), Source Serif 4, Atkinson Hyperlegible Next, systemowy; płynna grubość.
 
 ### Wzorce UI
-- Ekran zaczyna się od **dużego zdania z prawdziwych liczb** („6 kroków od hasła „Octopus””). Każda liczba musi być pomiarem — nigdy dekoracją.
-- **Miniatury haseł jako okładki** (zdjęcie główne z Wikipedii) na **półce z kolorowego szkła**; brak zdjęcia → karta w kolorze akcentu z tytułem.
+- Ekran startowy zaczyna się od **wielkiej kobaltowej liczby dnia** („7 haseł dziś”, obok druga linijka „2 tropy · 214 w sumie”; obie linijki wyrównane do dołu liczby), pod nią **karta „Czytaj dalej”**: miniatura na całą wysokość z lewej (jak okładka, nie wklejka), tytuł, „14 min temu · 4. krok tropu”, okrągła atramentowa strzałka. Każda liczba musi być pomiarem — nigdy dekoracją. Odrzucone: duży tytuł + mała miniatura obok („jak źle wstawione zdjęcie w Wordzie”), „N kroków od hasła”.
+- **Panel „Aa”**: na wierzchu kafle presetów w ich kolorach, kroju i grubości (nazwy presetów są jej, więc zostają); pod „Dostosuj” rzędy próbek bez podpisów: tła (kafel „Aa” w kolorze tekstu na tle; „Jak telefon” = pół jasny, pół ciemny), kroje („Ag”), grubości („Aa”), suwaki z małą/dużą literą i ikoną interlinii.
+- **Pływające przyciski w czytniku** (pojawiają się przy przewijaniu w górę): różowa pigułka „← poprzedni krok tropu” z nazwą hasła i okrągły atramentowy „↑”.
+- **Trop nad artykułem**: bieżący krok różowy, kroki „przed tobą” (po cofnięciu) przygaszone, skok z wyszukiwarki z przerywaną ramką.
+- **Linki według stanu hasła**: kropka po linku — pusty krążek = przejrzane, pełny + przygaszony kolor = doczytane (wariant L2).
+- **Miniatury haseł jako okładki** (zdjęcie główne z Wikipedii) na **półce z kolorowego szkła**; brak zdjęcia → karta w kolorze akcentu z tytułem na dole (lubi te losowe kolory z palety i wygląd „koszyka”).
+- Zdjęcia w artykule **na środku kolumny**, nie przy lewej krawędzi.
 - **Numerowane listy 0.1, 0.2…** dla tropu i kolejności; bieżący element wyróżniony akcentem.
 - **Karty** `#fff8f0` z dużym zaokrągleniem (ok. 22 px); **pigułki** (czarna = akcja główna, kolorowe = chipy z licznikami); **okrągłe przyciski** z ikoną.
 - **Wielkie liczby** w statystykach.
