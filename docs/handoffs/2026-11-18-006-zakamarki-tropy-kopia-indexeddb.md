@@ -51,6 +51,12 @@ Commity: `7720a87` (runda A + kopia, v8), `b95697c` (IndexedDB, v9), plus ten z 
 3. **Położenie** — trzy poziomy jednej szafki: góra = czytam (pod kciukiem „dalej”), środek = chcę, dół = przeczytane (mniejsze, archiwum); różne kolory szkła pasów.
 Rekomendacja na start rozmowy: 1 (unikatowe, mierzalne, zgodne z referencjami), ewentualnie połączone z 2 dla przeczytanych.
 
+## Wynik testu na telefonie (koniec sesji, 2026-11-18)
+
+- **Kopia zapasowa działa** — plik zapisuje się na telefonie. Od teraz reinstalacja PWA jest bezpieczna (po świeżej kopii).
+- **Systemowe „Tłumacz” przy zaznaczeniu tekstu się NIE pojawia** (Android, zainstalowana PWA). Całe frazy nie mają więc rozwiązania „bez kodu”. W 3b przedstawić opcje z rekomendacją, np.: (a) instalacja aplikacji Tłumacz Google — wtedy Chrome zwykle dodaje „Tłumacz” do menu zaznaczenia (do sprawdzenia, czy też w PWA); (b) przycisk w dymku zaznaczenia otwierający translate.google.com z frazą (wychodzi z aplikacji, tekst idzie do Google); (c) tylko słowa i zwroty z Wikisłownika + chip „PL”, frazy później przez Translator API, gdy trafi na Androida. MinT odrzucony (warunki).
+- Zapytała, gdzie są tłumaczenie, półki „chcę przeczytać” i zakreślenia — **jeszcze niezbudowane**, tylko zaprojektowane; kolejność: 3.3 → 3.4 → 3.5 → 3b. Zostajemy przy tej kolejności (zakreślenia można przestawić wcześniej, jeśli poprosi).
+
 ## Stan / uwagi
 
 - `.claude/launch.json` (lokalny, wykluczony z gita przez `.git/info/exclude`): serwer `python3 -m http.server 8000`.
@@ -61,7 +67,7 @@ Rekomendacja na start rozmowy: 1 (unikatowe, mierzalne, zgodne z referencjami), 
 
 ## Kolejne kroki
 
-1. **Ona, na telefonie:** otworzyć aplikację (v9 powinna wczytać się sama), **Zapisz kopię** i sprawdzić, czy plik jest w Pobranych; obejrzeć nowy start, Tropy, panel „Aa” (zapisać presety Dzień/Wieczór przez „+”), pigułkę powrotu; sprawdzić systemowe „Tłumacz” przy zaznaczeniu tekstu.
+1. ✅ Kopia na telefonie zapisana; systemowe „Tłumacz” niedostępne. Na start sesji: jej wrażenia z nowego startu, Tropów, panelu „Aa” i pigułki powrotu.
 2. **Etap 3.3:** pomiar akapitów (IntersectionObserver, czas aktywnej karty, magazyn na stany haseł, np. `reads` w IndexedDB v2: {title, paragraphs, seen[], state, firstUnread, updatedAt}), miejsce powrotu, makiety trzech półek bez słów → wdrożenie.
 3. **Etap 3.4:** linki L2 + minimapa tropu. **3.5:** karta hasła pod przytrzymaniem linku.
 4. **3b:** zakreślenia + PL + słownik (przy projektowaniu modelu grupowania i powiązań z Węzłami można użyć skilla renderownia).
