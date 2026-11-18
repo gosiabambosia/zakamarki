@@ -26,11 +26,12 @@ const store = {
 };
 
 const state = {
-  trail: store.get('trail', []),          // bieżący trop: lista tytułów
-  history: store.get('history', []),      // każde otwarcie: {title, at, from}
+  history: store.get('history', []),      // każde otwarcie: {title, at, from, j?}
   saved: store.get('saved', ['Garden city movement']),
   current: null,
-  pendingFrom: null                       // ustawiane, gdy klikasz link w artykule
+  pendingFrom: null,                      // ustawiane, gdy klikasz link w artykule
+  pendingResume: null,                    // id tropu, gdy wracasz do niego z ekranu startowego
+  searchFrom: null                        // hasło, z którego otwarto wyszukiwarkę w czytniku (skok)
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -44,6 +45,78 @@ async function api(params) {
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
+
+/* ——— tropy ———
+   Trop = {id, steps: [{t: tytuł, j?: 1 przy skoku z wyszukiwarki}], pos, start, end, branchOf?}.
+   pos wskazuje, gdzie w tropie jesteś: powrót o krok przesuwa pos i niczego nie kasuje.
+   Nowy link z wcześniejszego kroku tworzy odgałęzienie: nowy trop ze wspólnym początkiem.
+   Bieżący trop jest zawsze ostatni na liście; wznowienie starego przenosi go na koniec. */
+const MAX_TRAILS = 500;
+const curTrail = () => state.trails[state.trails.length - 1] || null;
+const trailTitles = (T) => T.steps.map((s) => s.t);
+
+function newTrail(steps, at, branchOf) {
+  const T = { id: 't' + at.toString(36) + '-' + state.trails.length, steps, pos: steps.length - 1, start: at, end: at };
+  if (branchOf) T.branchOf = branchOf;
+  state.trails.push(T);
+  if (state.trails.length > MAX_TRAILS) state.trails.splice(0, state.trails.length - MAX_TRAILS);
+  return T;
+}
+
+// Jeden krok czytania. from = hasło, z którego kliknięto link; jump = skok z wyszukiwarki w czytniku;
+// resume = id tropu wybranego na ekranie startowym.
+function applyStep(title, { from = null, jump = false, resume = null, at = Date.now() } = {}) {
+  let T = curTrail();
+  if (resume) {
+    const i = state.trails.findIndex((t) => t.id === resume);
+    if (i !== -1) {
+      T = state.trails.splice(i, 1)[0];
+      state.trails.push(T);
+      const k = trailTitles(T).lastIndexOf(title);
+      if (k !== -1) { T.pos = k; T.end = at; return; }
+    }
+  }
+  const src = from || (jump && T ? T.steps[T.pos].t : null);
+  if (T && src && T.steps[T.pos]?.t === src) {
+    if (T.steps[T.pos + 1]?.t === title) { T.pos++; T.end = at; return; }   // znowu tą samą drogą
+    if (T.pos < T.steps.length - 1) T = newTrail(T.steps.slice(0, T.pos + 1), at, T.id);   // odgałęzienie
+    T.steps.push(jump ? { t: title, j: 1 } : { t: title });
+    T.pos = T.steps.length - 1;
+    T.end = at;
+    return;
+  }
+  if (T && !src) {                       // „wstecz”, stuknięcie w trop albo w hasło z historii
+    const k = trailTitles(T).indexOf(title);
+    if (k !== -1) { T.pos = k; T.end = at; return; }
+  }
+  newTrail(src ? [{ t: src }, { t: title }] : [{ t: title }], at);
+}
+
+// Pierwsze uruchomienie z archiwum tropów: odtwarzamy je z historii otwarć (pole from mówi,
+// skąd przyszłaś linkiem). Wychodzi to samo, co dałaby nowa logika, gdyby działała od początku.
+function loadTrails() {
+  const saved = store.get('trails', null);
+  if (Array.isArray(saved)) return saved;
+  state.trails = [];
+  for (const h of state.history) applyStep(h.title, { from: h.from || null, at: h.at });
+  const old = store.get('trail', []);    // stary zapis bieżącego tropu (sama lista tytułów)
+  if (!state.trails.length && old.length) newTrail(old.map((t) => ({ t })), Date.now());
+  store.set('trails', state.trails);
+  return state.trails;
+}
+state.trails = loadTrails();
+
+// „14 min temu”, „wczoraj”…
+function ago(at) {
+  const m = Math.round((Date.now() - at) / 6e4);
+  if (m < 1) return 'przed chwilą';
+  if (m < 60) return `${m} min temu`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} godz. temu`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'wczoraj' : `${d} dni temu`;
+}
+const lastOpened = (title) => { for (let i = state.history.length - 1; i >= 0; i--) if (state.history[i].title === title) return state.history[i].at; return null; };
 
 /* ——— widoki ——— */
 function show(view) {
@@ -140,28 +213,49 @@ function renderHome() {
   show('home');
   document.title = 'Zakamarki';
   setProgress(0);
+  state.searchFrom = null;
 
-  // Nagłówek mówi, gdzie jesteś — z liczb, które naprawdę mierzymy.
-  const trail = state.trail;
-  const hero = $('#hero'), lead = $('#hero-lead'), cont = $('#continue');
+  // Nagłówek: wielka liczba dnia. Gdy dziś nic, liczba tygodnia, a gdy i to zero — wszystkich.
+  const hist = state.history;
+  const total = new Set(hist.map((h) => h.title)).size;
   const today = new Date().setHours(0, 0, 0, 0);
-  const todayCount = new Set(state.history.filter((h) => h.at >= today).map((h) => h.title)).size;
-  if (trail.length > 1) {
-    const steps = trail.length - 1;
-    hero.innerHTML = '';
-    const em = document.createElement('em');
-    em.textContent = `${steps} ${plural(steps, 'krok', 'kroki', 'kroków')}`;
-    hero.append(em, ` od hasła „${trail[0]}”`);
-    lead.textContent = `Ostatnio: ${trail[trail.length - 1]}` + (todayCount ? ` · dziś ${todayCount} ${plural(todayCount, 'hasło', 'hasła', 'haseł')}` : '');
-  } else if (trail.length === 1) {
-    hero.textContent = `Ostatnio: ${trail[0]}`;
-    lead.textContent = 'Kliknij link w artykule, a zacznie się trop.';
-  } else {
-    hero.innerHTML = 'Dokąd dziś <em>w głąb</em>?';
-    lead.textContent = 'Wyszukaj hasło lupą u góry.';
+  const weekAgo = Date.now() - 7 * 864e5;
+  const uniq = (from) => new Set(hist.filter((h) => h.at >= from).map((h) => h.title)).size;
+  const todayN = uniq(today), weekN = uniq(weekAgo);
+  const realTrails = state.trails.filter((T) => T.steps.length > 1);
+  const trailsToday = realTrails.filter((T) => T.end >= today).length;
+  const [num, unit, sub] = todayN
+    ? [todayN, `${plural(todayN, 'hasło', 'hasła', 'haseł')} dziś`, trailsToday ? `${trailsToday} ${plural(trailsToday, 'trop', 'tropy', 'tropów')} · ${total} w sumie` : `${total} w sumie`]
+    : weekN
+      ? [weekN, `${plural(weekN, 'hasło', 'hasła', 'haseł')} w tym tygodniu`, `${total} w sumie`]
+      : [total, `${plural(total, 'hasło', 'hasła', 'haseł')} w sumie`, hist.length ? `ostatnio ${ago(hist[hist.length - 1].at)}` : ''];
+  $('#hero').hidden = !total;
+  $('#hero-search').hidden = !!total;
+  $('#hero-num').textContent = num;
+  $('#hero-unit').textContent = unit;
+  $('#hero-sub').textContent = sub;
+
+  // „Czytaj dalej”: miejsce, w którym jesteś w bieżącym tropie.
+  const T = curTrail();
+  const cont = $('#continue');
+  cont.hidden = !T;
+  if (T) {
+    const t = T.steps[T.pos].t;
+    cont.href = hrefFor(t);
+    cont.dataset.resume = T.id;
+    cont.querySelector('.next-t').textContent = t;
+    const when = lastOpened(t);
+    cont.querySelector('.next-s').textContent = [when && ago(when), T.steps.length > 1 && `${T.pos + 1}. krok tropu`].filter(Boolean).join(' · ');
+    const paint = () => {
+      const img = cont.querySelector('.next-img');
+      const src = state.thumbs[t];
+      img.textContent = src ? '' : t[0];
+      img.style.backgroundImage = src ? `url("${src}")` : '';
+      img.classList.toggle('no-img', !src);
+    };
+    paint();
+    if (!(t in state.thumbs)) loadThumbs([t, ...state.saved]).then(() => { if (!$('#view-home').hidden) { paint(); renderShelf(state.saved); } });
   }
-  cont.hidden = !trail.length;
-  if (trail.length) cont.href = hrefFor(trail[trail.length - 1]);
 
   // Półka z przypiętymi: najpierw od razu (z pamięci), potem z dociągniętymi miniaturami.
   $('#saved-count').textContent = state.saved.length ? `${state.saved.length} ${plural(state.saved.length, 'hasło', 'hasła', 'haseł')}` : '';
@@ -170,42 +264,136 @@ function renderHome() {
     if (!$('#view-home').hidden) renderShelf(state.saved);
   });
 
-  // Trop jako numerowana lista 0.1, 0.2…; bieżący krok wyróżniony.
-  const ol = $('#last-trail');
+  // Tropy: najnowsze pięć (z co najmniej dwoma hasłami), 0.1…; stuknięcie wznawia trop.
+  const ol = $('#trails-list');
   ol.replaceChildren();
-  $('#trail-count').textContent = trail.length ? `${trail.length} ${plural(trail.length, 'hasło', 'hasła', 'haseł')}` : '';
-  if (!trail.length) {
+  $('#trails-count').textContent = realTrails.length ? `${realTrails.length} ${plural(realTrails.length, 'trop', 'tropy', 'tropów')}` : '';
+  const shown = realTrails.slice(-5).reverse();
+  if (!shown.length) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = 'Trop pojawi się po pierwszym artykule.';
+    li.textContent = 'Kliknij link w artykule, a zacznie się trop.';
     ol.append(li);
   }
-  trail.forEach((t, i) => {
+  shown.forEach((tr, i) => {
     const li = document.createElement('li');
-    if (i === trail.length - 1) li.className = 'now';
+    if (tr === T) li.className = 'now';
     const a = document.createElement('a');
-    a.href = hrefFor(t);
-    a.innerHTML = '<span class="n"></span><span class="t"></span><span class="go" aria-hidden="true">→</span>';
-    a.querySelector('.n').textContent = (i < 9 ? '0.' : '') + (i + 1);
-    a.querySelector('.t').textContent = t;
+    const here = tr.steps[tr.pos].t;
+    a.href = hrefFor(here);
+    a.dataset.resume = tr.id;
+    a.innerHTML = '<span class="n"></span><span class="t"><span class="route"></span><span class="desc"></span></span><span class="go" aria-hidden="true">→</span>';
+    a.querySelector('.n').textContent = '0.' + (i + 1);
+    a.querySelector('.route').textContent = `${tr.steps[0].t} → ${tr.steps[tr.steps.length - 1].t}`;
+    const jumps = tr.steps.filter((x) => x.j).length;
+    a.querySelector('.desc').textContent = [`${tr.steps.length} ${plural(tr.steps.length, 'hasło', 'hasła', 'haseł')}`, jumps && `${jumps} ${plural(jumps, 'skok', 'skoki', 'skoków')}`, ago(tr.end)].filter(Boolean).join(' · ');
     li.append(a);
     ol.append(li);
   });
 
-  const all = new Set(state.history.map((h) => h.title));
-  const weekAgo = Date.now() - 7 * 864e5;
-  const week = new Set(state.history.filter((h) => h.at >= weekAgo).map((h) => h.title)).size;
-  $('#stat-total').textContent = all.size;
-  $('#stat-week').textContent = `${week} w tym tygodniu`;
-
   const seen = new Set();
   const recent = [];
-  for (let i = state.history.length - 1; i >= 0 && recent.length < 10; i--) {
-    const t = state.history[i].title;
+  for (let i = hist.length - 1; i >= 0 && recent.length < 10; i--) {
+    const t = hist[i].title;
     if (!seen.has(t)) { seen.add(t); recent.push(t); }
   }
   fillList($('#history-list'), recent, 'Historia pojawi się po pierwszym artykule.');
+  renderBackup();
 }
+
+// Linki z ekranu startowego, które wznawiają trop (karta „Czytaj dalej”, lista tropów).
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-resume]');
+  if (a) state.pendingResume = a.dataset.resume;
+});
+$('#hero-search').addEventListener('click', () => toggleSearch(true));
+
+/* ——— kopia zapasowa ———
+   Eksport: jeden plik JSON ze wszystkim, co zapisała aplikacja (bez miniatur — to tylko pamięć
+   podręczna, da się je pobrać ponownie). Import łączy plik z danymi w aplikacji, niczego nie
+   zastępuje: wczytanie starej kopii nie skasuje nowszej historii. */
+const BACKUP_VERSION = 1;
+
+function backupSummary(d) {
+  const n = (x) => (Array.isArray(x) ? x.length : 0);
+  const trails = (d.trails || []).filter((T) => T.steps?.length > 1).length;
+  return `${n(d.history)} ${plural(n(d.history), 'otwarcie', 'otwarcia', 'otwarć')} · ${trails} ${plural(trails, 'trop', 'tropy', 'tropów')} · ${n(d.saved)} ${plural(n(d.saved), 'przypięte', 'przypięte', 'przypiętych')} · ${n(d.presets)} ${plural(n(d.presets), 'preset', 'presety', 'presetów')}`;
+}
+
+function renderBackup() {
+  const at = store.get('backupAt', null);
+  $('#backup-age').textContent = at ? `ostatnia ${ago(at)}` : 'jeszcze żadnej';
+  $('#backup-info').textContent = 'W aplikacji: ' + backupSummary(state);
+}
+
+function backupMsg(text) {
+  const m = $('#backup-msg');
+  m.textContent = text;
+  m.hidden = !text;
+}
+
+$('#backup-save').addEventListener('click', () => {
+  const data = { history: state.history, trails: state.trails, saved: state.saved, reader: state.reader, presets: state.presets };
+  const file = { app: 'zakamarki', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), data };
+  const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `zakamarki-kopia-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  store.set('backupAt', Date.now());
+  renderBackup();
+  backupMsg('Zapisano plik w Pobranych: ' + a.download);
+});
+
+// Łączenie: historia po (tytuł, czas), tropy po id (wygrywa nowszy), przypięte i presety — suma.
+function mergeBackup(d) {
+  const key = (h) => h.title + '|' + h.at;
+  const hist = new Map(state.history.map((h) => [key(h), h]));
+  for (const h of d.history || []) if (h && typeof h.title === 'string' && Number.isFinite(h.at)) hist.set(key(h), h);
+  state.history = [...hist.values()].sort((a, b) => a.at - b.at).slice(-2000);
+
+  const trails = new Map(state.trails.map((T) => [T.id, T]));
+  for (const T of d.trails || []) {
+    if (!T?.id || !Array.isArray(T.steps) || !T.steps.length) continue;
+    const mine = trails.get(T.id);
+    if (!mine || (T.end || 0) > (mine.end || 0)) trails.set(T.id, T);
+  }
+  // Bieżący trop zostaje bieżącym (ostatnim); reszta według czasu ostatniego kroku.
+  const cur = curTrail();
+  state.trails = [...trails.values()].filter((T) => T !== cur).sort((a, b) => (a.end || 0) - (b.end || 0));
+  if (cur) state.trails.push(trails.get(cur.id) || cur);
+
+  for (const t of d.saved || []) if (typeof t === 'string' && !state.saved.includes(t)) state.saved.push(t);
+  for (const p of d.presets || []) if (p?.name && !state.presets.some((x) => x.name === p.name)) state.presets.push(p);
+  state.presets = state.presets.slice(0, MAX_PRESETS);
+  // Ustawienia czytania należą do urządzenia; z pliku bierzemy je tylko, gdy tu są domyślne.
+  if (d.reader && sameAsDefault(state.reader)) setReader({ ...READER_DEFAULT, ...d.reader });
+
+  store.set('history', state.history);
+  store.set('trails', state.trails);
+  store.set('saved', state.saved);
+  store.set('presets', state.presets);
+}
+const sameAsDefault = (r) => Object.keys(READER_DEFAULT).every((k) => String(r[k]) === String(READER_DEFAULT[k]));
+
+$('#backup-load').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  let file;
+  try { file = JSON.parse(await f.text()); } catch { backupMsg('To nie jest plik kopii Zakamarków (nie da się odczytać JSON).'); return; }
+  if (file?.app !== 'zakamarki' || !file.data) { backupMsg('To nie jest plik kopii Zakamarków.'); return; }
+  if (file.version > BACKUP_VERSION) { backupMsg('Kopia pochodzi z nowszej wersji aplikacji. Zaktualizuj aplikację i spróbuj ponownie.'); return; }
+  const when = file.exportedAt ? new Date(file.exportedAt).toLocaleDateString('pl-PL') : '?';
+  if (!confirm(`Kopia z ${when}:\n${backupSummary(file.data)}\n\nPołączyć z danymi w aplikacji? Nic nie zostanie usunięte.`)) return;
+  const before = state.history.length;
+  mergeBackup(file.data);
+  renderHome();
+  backupMsg(`Wczytano. Nowych wpisów w historii: ${state.history.length - before}.`);
+});
 
 /* ——— wyszukiwanie ——— */
 let suggestTimer;
@@ -259,10 +447,19 @@ document.addEventListener('click', (e) => {
 function toggleSearch(open) {
   $('.bar').classList.toggle('is-searching', open);
   $('#search-toggle').setAttribute('aria-expanded', String(open));
+  // Zwinięte pole jest ukryte, ale trzyma wartość; czyścimy je, żeby po otwarciu
+  // nie czekał w nim stary tekst (na Androidzie wyglądało na puste aż do stuknięcia).
+  $('#search').value = '';
+  $('#suggestions').hidden = true;
   if (open) $('#search').focus();
-  else { $('#search').blur(); $('#suggestions').hidden = true; }
+  else $('#search').blur();
 }
-$('#search-toggle').addEventListener('click', () => toggleSearch(!$('.bar').classList.contains('is-searching')));
+$('#search-toggle').addEventListener('click', () => {
+  const open = !$('.bar').classList.contains('is-searching');
+  // Wyszukanie z czytnika to skojarzeniowy skok w tym samym tropie; ze startu — nowy trop.
+  state.searchFrom = open && !$('#view-reader').hidden ? state.current : null;
+  toggleSearch(open);
+});
 
 /* ——— czytnik ——— */
 function cleanArticle(html) {
@@ -335,37 +532,41 @@ $('#article').addEventListener('click', (e) => {
 });
 
 function updateTrail(title) {
-  const from = state.pendingFrom;
-  state.pendingFrom = null;
-  const idx = state.trail.indexOf(title);
-  if (idx !== -1) {
-    state.trail = state.trail.slice(0, idx + 1);     // powrót do wcześniejszego punktu tropu
-  } else if (from && state.trail[state.trail.length - 1] === from) {
-    state.trail.push(title);                         // krok dalej
-  } else if (from) {
-    state.trail = [from, title];
-  } else {
-    state.trail = [title];                           // nowy trop (z wyszukiwania lub listy)
-  }
-  store.set('trail', state.trail);
+  const from = state.pendingFrom, resume = state.pendingResume;
+  const jump = !from && !resume && state.searchFrom && state.searchFrom !== title;
+  state.pendingFrom = state.pendingResume = state.searchFrom = null;
+  applyStep(title, { from, resume, jump: !!jump });
+  store.set('trails', state.trails);
 
-  state.history.push({ title, at: Date.now(), from });
+  const entry = { title, at: Date.now(), from: from || (jump ? state.current : null) };
+  if (jump) entry.j = 1;
+  state.history.push(entry);
   if (state.history.length > 2000) state.history = state.history.slice(-2000);
   store.set('history', state.history);
 }
 
+// Trop nad artykułem: kroki przed bieżącym to linki, bieżący wyróżniony, kroki „przed tobą”
+// (gdy cofnęłaś się w tropie) przygaszone; skok z wyszukiwarki ma przerywaną ramkę.
 function renderTrail() {
   const nav = $('#trail');
   nav.replaceChildren();
-  state.trail.forEach((t, i) => {
-    const last = i === state.trail.length - 1;
-    const el = document.createElement(last ? 'span' : 'a');
-    el.textContent = t;
-    if (!last) el.href = hrefFor(t);
+  const T = curTrail();
+  if (!T) return;
+  T.steps.forEach((s, i) => {
+    const here = i === T.pos;
+    const el = document.createElement(here ? 'span' : 'a');
+    el.textContent = s.t;
+    if (!here) el.href = hrefFor(s.t);
+    if (i > T.pos) el.classList.add('ahead');
+    if (s.j) { el.classList.add('jump'); el.title = 'skok z wyszukiwarki'; }
     nav.append(el);
   });
-  const lastEl = nav.lastElementChild;
-  if (lastEl) lastEl.scrollIntoView({ inline: 'end', block: 'nearest' });
+  const cur = nav.children[T.pos];
+  if (cur) cur.scrollIntoView({ inline: 'center', block: 'nearest' });
+  const prev = T.steps[T.pos - 1];
+  const back = $('#back-step');
+  back.hidden = !prev;
+  if (prev) { back.href = hrefFor(prev.t); back.querySelector('.t').textContent = prev.t; }
 }
 
 function renderPin() {
@@ -403,8 +604,8 @@ async function openArticle(requested) {
     if (data.error) throw new Error(data.error.info || 'Nie ma takiego hasła.');
     const p = data.parse;
     const title = p.title;
+    updateTrail(title);       // przed zmianą state.current: skok pamięta hasło, z którego wyszukiwano
     state.current = title;
-    updateTrail(title);
 
     const tmp = document.createElement('div');
     tmp.innerHTML = p.displaytitle;
@@ -437,6 +638,20 @@ window.addEventListener('scroll', () => {
   const total = art.offsetTop + art.offsetHeight - window.innerHeight;
   setProgress(total > 0 ? window.scrollY / total : 1);
 }, { passive: true });
+
+/* ——— szybki powrót: poprzedni krok tropu + na górę ———
+   Pokazuje się przy przewijaniu w górę (jak pasek adresu w Chrome), chowa przy czytaniu w dół
+   i blisko początku artykułu, gdzie trop jest widoczny nad tytułem. */
+let floatY = 0;
+function hideFloat() { $('#float').hidden = true; }
+window.addEventListener('scroll', () => {
+  if ($('#view-reader').hidden) return;
+  const y = scrollY, dy = y - floatY;
+  if (Math.abs(dy) < 12) return;
+  floatY = y;
+  $('#float').hidden = dy > 0 || y < 300;
+}, { passive: true });
+$('#to-top').addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); hideFloat(); });
 
 /* ——— ustawienia czytania (panel „Aa”) ———
    Każde ustawienie to wartość jednej zmiennej CSS albo atrybutu na <html>; applyReader()
@@ -501,56 +716,72 @@ function setReader(patch) {
   renderSheet();
 }
 
-function choiceButtons(el, items, key, decorate) {
+// Kafel-próbka zamiast przycisku z nazwą; nazwa zostaje w aria-label (czytnik ekranu) i title.
+function tileButtons(el, items, key, decorate) {
   el.replaceChildren(...items.map((item) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'choice';
+    b.className = 'tile';
+    b.setAttribute('aria-label', item.label);
+    b.title = item.label;
     b.setAttribute('aria-pressed', String(state.reader[key] === item.id));
-    if (decorate) decorate(b, item);
-    b.append(item.label);
+    decorate(b, item);
     b.addEventListener('click', () => setReader({ [key]: item.id }));
     return b;
   }));
 }
 
+const SETTING_KEYS = ['page', 'font', 'weight', 'size', 'leading', 'measure'];
+const sameSettings = (a) => SETTING_KEYS.every((k) => String(a[k] ?? READER_DEFAULT[k]) === String(state.reader[k]));
+
+// Próbka „Aa” w kolorach danego tła; „Jak telefon” = pół jasnej, pół ciemnej kartki.
+function paintPage(el, pageId) {
+  const p = PAGES.find((x) => x.id === pageId) || PAGES[0];
+  if (p.id === 'auto') {
+    el.style.background = `linear-gradient(135deg, ${PAGES[1].swatch[0]} 50%, ${PAGES[5].swatch[0]} 50%)`;
+    el.style.color = PAGES[1].swatch[1];
+    el.classList.add('split');
+  } else {
+    el.style.background = p.swatch[0];
+    el.style.color = p.swatch[1];
+  }
+}
+
 function renderSheet() {
   const r = state.reader;
-  choiceButtons($('#set-page'), PAGES, 'page', (b, p) => {
-    const s = document.createElement('span');
-    s.className = 'swatch';
-    s.style.background = `radial-gradient(circle, ${p.swatch[1]} 0 28%, ${p.swatch[0]} 31%)`;   // kropka tekstu na tle
-    b.append(s);
+  const fontCss = (FONTS.find((f) => f.id === r.font) || FONTS[0]).css;
+  tileButtons($('#set-page'), PAGES, 'page', (b, p) => {
+    paintPage(b, p.id);
+    b.style.fontFamily = fontCss;
+    if (p.id === 'auto') b.innerHTML = '<span>Aa</span><span>Aa</span>';
+    else b.textContent = 'Aa';
   });
-  choiceButtons($('#set-font'), FONTS, 'font', (b, f) => {
-    const s = document.createElement('span');
-    s.className = 'font-sample';
-    s.style.fontFamily = f.css;
-    s.textContent = 'Aa';
-    b.append(s);
-  });
-  choiceButtons($('#set-weight'), WEIGHTS, 'weight', (b, w) => {
-    const s = document.createElement('span');
-    s.className = 'font-sample';
-    s.style.fontWeight = w.id;
-    s.textContent = 'Aa';
-    b.append(s);
-  });
-  $('#set-size').value = r.size;        $('#out-size').textContent = r.size + ' px';
-  $('#set-leading').value = r.leading;  $('#out-leading').textContent = Number(r.leading).toFixed(2);
-  $('#set-measure').value = r.measure;  // Przybliżenie: przeciętny znak ma ok. pół wysokości kroju; 1 rem = 16 px.
-  $('#out-measure').textContent = `~${Math.round(r.measure * 32 / r.size)} znaków · tablet i komputer`;
+  tileButtons($('#set-font'), FONTS, 'font', (b, f) => { b.style.fontFamily = f.css; b.textContent = 'Ag'; });
+  tileButtons($('#set-weight'), WEIGHTS, 'weight', (b, w) => { b.style.fontFamily = fontCss; b.style.fontWeight = w.id; b.textContent = 'Aa'; });
+  $('#set-size').value = r.size;
+  $('#set-leading').value = r.leading;
+  $('#set-measure').value = r.measure;
 
+  // Presety jako kafle w swoich kolorach, kroju i grubości. × widać tylko przy „Dostosuj”.
   const list = $('#presets');
   list.replaceChildren(...state.presets.map((p, i) => {
-    const wrap = document.createElement('span');
-    wrap.className = 'preset';
+    const set = { ...READER_DEFAULT, ...p.settings };
+    const card = document.createElement('div');
+    card.className = 'pcard';
     const use = document.createElement('button');
     use.type = 'button';
-    use.textContent = p.name;
-    use.addEventListener('click', () => setReader({ ...READER_DEFAULT, ...p.settings }));
+    use.className = 'pcard-use';
+    use.setAttribute('aria-pressed', String(sameSettings(set)));
+    paintPage(use, set.page);
+    use.style.fontFamily = (FONTS.find((f) => f.id === set.font) || FONTS[0]).css;
+    use.innerHTML = '<b></b><small></small>';
+    use.querySelector('b').textContent = 'Aa';
+    use.querySelector('b').style.fontWeight = set.weight;
+    use.querySelector('small').textContent = p.name;
+    use.addEventListener('click', () => setReader(set));
     const del = document.createElement('button');
     del.type = 'button';
+    del.className = 'pdel';
     del.textContent = '×';
     del.setAttribute('aria-label', 'Usuń preset ' + p.name);
     del.addEventListener('click', () => {
@@ -558,9 +789,21 @@ function renderSheet() {
       store.set('presets', state.presets);
       renderSheet();
     });
-    wrap.append(use, del);
-    return wrap;
+    card.append(use, del);
+    return card;
   }));
+  if (state.presets.length < MAX_PRESETS) {
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'pcard-add';
+    add.textContent = '+';
+    add.setAttribute('aria-label', 'Zapisz bieżące ustawienia jako preset');
+    add.addEventListener('click', () => {
+      $('#preset-form').hidden = false;
+      $('#preset-name').focus();
+    });
+    list.append(add);
+  }
 }
 
 for (const key of ['size', 'leading', 'measure']) {
@@ -571,11 +814,15 @@ $('#preset-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const name = $('#preset-name').value.trim();
   if (!name) return;
-  // Ta sama nazwa nadpisuje preset; nowe trafiają na początek, najstarsze wypadają po MAX_PRESETS.
-  state.presets = [{ name, settings: { ...state.reader } }, ...state.presets.filter((p) => p.name !== name)].slice(0, MAX_PRESETS);
+  // Ta sama nazwa nadpisuje preset; nowe trafiają na koniec (kolejność kafli się nie przestawia).
+  const settings = Object.fromEntries(SETTING_KEYS.map((k) => [k, state.reader[k]]));
+  const i = state.presets.findIndex((p) => p.name === name);
+  if (i !== -1) state.presets[i] = { name, settings };
+  else state.presets = [...state.presets, { name, settings }].slice(-MAX_PRESETS);
   store.set('presets', state.presets);
   $('#preset-name').value = '';
   $('#preset-name').blur();
+  $('#preset-form').hidden = true;
   renderSheet();
 });
 
@@ -585,7 +832,9 @@ function toggleSheet(open) {
   $('#sheet').hidden = !open;
   $('#sheet-catcher').hidden = !open;
   $('#aa').setAttribute('aria-expanded', String(open));
-  if (open) renderSheet();
+  $('#preset-form').hidden = true;
+  // Bez zapisanych presetów nie ma czego wybierać na wierzchu — od razu szczegóły.
+  if (open) { $('#tune').open = !state.presets.length; renderSheet(); }
 }
 $('#aa').addEventListener('click', () => toggleSheet($('#sheet').hidden));
 $('#sheet-done').addEventListener('click', () => toggleSheet(false));
@@ -622,7 +871,7 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('#note') && !e.target.closest('sup.reference')) hideNote();
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { hideNote(); toggleSheet(false); toggleSearch(false); }
+  if (e.key === 'Escape') { hideNote(); toggleSheet(false); toggleSearch(false); state.searchFrom = null; }
 });
 // Zamykamy dopiero po wyraźnym przewinięciu: na telefonie chowający się pasek adresu
 // też wywołuje „scroll”, a nie powinien zamykać dymka.
@@ -639,8 +888,8 @@ $('#note').addEventListener('click', (e) => {
 function route() {
   const m = location.hash.match(/^#\/wiki\/(.+)$/);
   $('#suggestions').hidden = true;
-  if (m) toggleSearch(false);
-  if (m) openArticle(decodeTitle(m[1]));
+  hideFloat();
+  if (m) { toggleSearch(false); openArticle(decodeTitle(m[1])); }
   else renderHome();
 }
 window.addEventListener('hashchange', route);
