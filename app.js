@@ -597,6 +597,7 @@ function renderHome() {
     a.querySelector('.route').textContent = `${tr.steps[0].t} → ${tr.steps[tr.steps.length - 1].t}`;
     const jumps = tr.steps.filter((x) => x.j).length;
     a.querySelector('.desc').textContent = [`${tr.steps.length} ${plural(tr.steps.length, 'hasło', 'hasła', 'haseł')}`, jumps && `${jumps} ${plural(jumps, 'skok', 'skoki', 'skoków')}`, ago(tr.end)].filter(Boolean).join(' · ');
+    a.querySelector('.t').append(trailDots(tr));
     li.append(a);
     ol.append(li);
   });
@@ -611,10 +612,39 @@ function renderHome() {
   renderBackup();
 }
 
-// Linki z ekranu startowego, które wznawiają trop (karta „Czytaj dalej”, półki, lista tropów)
-// i otwierają hasło na pierwszym nieprzeczytanym akapicie („Czytaj dalej”, półka Czytam).
+/* Kreska tropu (minimapa M3): pod każdym tropem rząd kropek, jedna na hasło, w znakach stanu
+   jak przy linkach (pusty krążek = przejrzane, pełny = doczytane, mała kropka = tylko otwarte);
+   przerywany odcinek = skok z wyszukiwarki, różowa kropka = miejsce, w którym jesteś w tropie.
+   Długi trop: pierwsze 5 haseł, „⋯”, ostatnie 9. */
+function stepMark(t) {
+  const st = state.reads.get(t)?.state;
+  return st === 'done' ? 'done' : st === 'seen' ? 'seen' : 'open';
+}
+function trailDots(T) {
+  const box = document.createElement('span');
+  box.className = 'dots';
+  box.setAttribute('aria-hidden', 'true');
+  const idx = T.steps.map((_, i) => i);
+  const shown = idx.length > 15 ? [...idx.slice(0, 5), -1, ...idx.slice(-9)] : idx;
+  shown.forEach((i, k) => {
+    if (k) {
+      const seg = document.createElement('i');
+      seg.className = i === -1 || shown[k - 1] === -1 ? 'seg gap' : T.steps[i].j ? 'seg j' : 'seg';
+      box.append(seg);
+    }
+    const b = document.createElement('b');
+    if (i === -1) { b.className = 'more'; b.textContent = '⋯'; }
+    else b.className = stepMark(T.steps[i].t) + (i === T.pos ? ' now' : '');
+    box.append(b);
+  });
+  return box;
+}
+
+// Linki z ekranu startowego i z mapy tropu, które wznawiają trop (karta „Czytaj dalej”, półki,
+// lista tropów, odgałęzienia na mapie) i otwierają hasło na pierwszym nieprzeczytanym akapicie
+// („Czytaj dalej”, półka Czytam).
 document.addEventListener('click', (e) => {
-  const a = e.target.closest('#view-home a');
+  const a = e.target.closest('#view-home a, #map-sheet a');
   if (!a) return;
   if (a.dataset.resume) state.pendingResume = a.dataset.resume;
   state.pendingReadResume = a.dataset.readResume || null;
@@ -867,6 +897,8 @@ function cleanArticle(html) {
 $('#article').addEventListener('click', (e) => {
   const a = e.target.closest('a');
   if (!a) return;
+  // Puszczenie palca po przytrzymaniu linku (karta hasła) nie otwiera hasła.
+  if (Date.now() - peek.at < 700) { e.preventDefault(); return; }
   if (a.dataset.anchor !== undefined) {
     e.preventDefault();
     if (a.closest('sup.reference') && showNote(a, a.dataset.anchor)) return;
@@ -919,6 +951,7 @@ function renderTrail() {
     if (s.j) { el.classList.add('jump'); el.title = 'skok z wyszukiwarki'; }
     nav.append(el);
   });
+  $('#map-open').hidden = trailFamily(T).reduce((n, F) => n + F.steps.length, 0) < 2;
   const cur = nav.children[T.pos];
   if (cur) cur.scrollIntoView({ inline: 'center', block: 'nearest' });
   const prev = T.steps[T.pos - 1];
@@ -961,6 +994,271 @@ function paintLinks(map) {
     a.classList.toggle('st-done', st === 'done');
   }
 }
+
+/* ——— mapa tropu (minimapa M2) ———
+   Arkusz od dołu z całą rodziną tropu jak z linią metra: bieżący trop to główna linia,
+   odgałęzienia (tropy połączone przez branchOf) skręcają w bok od hasła, w którym się rozeszły.
+   Przystanki mają znaki stanu jak linki; przerywany odcinek = skok z wyszukiwarki; kroki
+   „przed tobą” przygaszone. Stuknięcie w przystanek otwiera hasło (na odgałęzieniu — wznawia je). */
+function trailFamily(T) {
+  const byId = new Map(state.trails.map((t) => [t.id, t]));
+  let root = T;
+  const up = new Set([T.id]);
+  while (root.branchOf && byId.has(root.branchOf) && !up.has(root.branchOf)) { root = byId.get(root.branchOf); up.add(root.id); }
+  const kids = new Map();
+  for (const t of state.trails) if (t.branchOf) { if (!kids.has(t.branchOf)) kids.set(t.branchOf, []); kids.get(t.branchOf).push(t); }
+  const fam = [], seen = new Set(), stack = [root];
+  while (stack.length) {
+    const t = stack.pop();
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    fam.push(t);
+    for (const k of kids.get(t.id) || []) stack.push(k);
+  }
+  return fam;
+}
+
+const MAP_ROW = 46, MAP_X = [14, 44], MAX_BRANCHES = 8;
+
+function renderMap() {
+  const T = curTrail();
+  if (!T) return;
+  const main = trailTitles(T);
+  // Odgałęzienia: ogon każdego tropu z rodziny po wspólnym początku z bieżącym (bez powtórzeń).
+  const branches = [], tails = new Set();
+  for (const F of trailFamily(T)) {
+    if (F === T) continue;
+    let k = 0;
+    while (k < F.steps.length && k < main.length && F.steps[k].t === main[k]) k++;
+    const tail = F.steps.slice(k);
+    const sig = (k - 1) + '|' + tail.map((s) => s.t).join('|');
+    if (!k || !tail.length || tails.has(sig)) continue;
+    tails.add(sig);
+    branches.push({ F, d: k - 1, tail });
+  }
+  branches.sort((a, b) => a.d - b.d || a.F.start - b.F.start);
+  branches.splice(MAX_BRANCHES);
+
+  const rows = [];
+  T.steps.forEach((s, i) => {
+    rows.push({ t: s.t, lane: 0, j: !!s.j, now: i === T.pos, ahead: i > T.pos });
+    for (const b of branches.filter((x) => x.d === i)) {
+      b.tail.forEach((s2, k) => rows.push({ t: s2.t, lane: 1, j: !!s2.j, trail: b.F, from: k === 0 ? rows.findIndex((r) => r.lane === 0 && r.t === s.t) : null }));
+    }
+  });
+
+  const y = (r) => r * MAP_ROW + MAP_ROW / 2;
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('class', 'map-svg');
+  svg.setAttribute('width', '60');
+  svg.setAttribute('height', String(rows.length * MAP_ROW));
+  svg.setAttribute('aria-hidden', 'true');
+  const path = (d, cls) => { const p = document.createElementNS(ns, 'path'); p.setAttribute('d', d); p.setAttribute('class', cls); svg.append(p); };
+  // Linie: główna między kolejnymi krokami bieżącego tropu, gałęzie od miejsca rozejścia.
+  let prevMain = -1, prevLane1 = -1;
+  rows.forEach((r, i) => {
+    if (r.lane === 0) {
+      if (prevMain >= 0) path(`M${MAP_X[0]} ${y(prevMain)} V${y(i)}`, 'ml' + (r.j ? ' j' : '') + (r.ahead ? ' ahead' : ''));
+      prevMain = i;
+    } else if (r.from !== null) {
+      const y0 = y(r.from), y1 = y(i);
+      path(`M${MAP_X[0]} ${y0} C${MAP_X[0]} ${y0 + 24} ${MAP_X[1]} ${y1 - 24} ${MAP_X[1]} ${y1}`, 'ml' + (r.j ? ' j' : ''));
+      prevLane1 = i;
+    } else {
+      path(`M${MAP_X[1]} ${y(prevLane1)} V${y(i)}`, 'ml' + (r.j ? ' j' : ''));
+      prevLane1 = i;
+    }
+  });
+  const circle = (cx, cy, rad, cls) => { const c = document.createElementNS(ns, 'circle'); c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', rad); c.setAttribute('class', cls); svg.append(c); };
+  rows.forEach((r, i) => {
+    const cx = MAP_X[r.lane], cy = y(i), mark = stepMark(r.t), dim = r.ahead ? ' ahead' : '';
+    if (r.now) circle(cx, cy, 13, 'mk-now');
+    if (mark === 'open') circle(cx, cy, 4.5, 'mk-open' + dim);
+    else circle(cx, cy, 7, 'mk-' + mark + dim);
+  });
+
+  const list = document.createElement('div');
+  list.className = 'map-rows';
+  rows.forEach((r) => {
+    const a = document.createElement('a');
+    a.className = 'map-row' + (r.now ? ' now' : '') + (r.ahead ? ' ahead' : '') + (r.lane ? ' lane1' : '');
+    a.href = hrefFor(r.t);
+    if (r.trail) a.dataset.resume = r.trail.id;
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.lang = 'en';
+    nm.textContent = r.t;
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    const rec = state.reads.get(r.t);
+    meta.textContent = rec?.n ? `${rec.read}/${rec.n}` : r.j ? 'skok' : '';
+    a.append(nm, meta);
+    list.append(a);
+  });
+  const wrap = document.createElement('div');
+  wrap.className = 'map-wrap';
+  wrap.append(svg, list);
+  $('#map-body').replaceChildren(wrap);
+
+  const n = new Set(rows.map((r) => r.t)).size;
+  const jumps = rows.filter((r) => r.j).length;
+  $('#map-count').textContent = [`${n} ${plural(n, 'hasło', 'hasła', 'haseł')}`,
+    branches.length && `${branches.length} ${plural(branches.length, 'odgałęzienie', 'odgałęzienia', 'odgałęzień')}`,
+    jumps && `${jumps} ${plural(jumps, 'skok', 'skoki', 'skoków')}`].filter(Boolean).join(' · ');
+}
+
+function toggleMap(open) {
+  $('#map-sheet').hidden = !open;
+  $('#map-catcher').hidden = !open;
+  $('#map-open').setAttribute('aria-expanded', String(open));
+  if (open) renderMap();
+}
+$('#map-open').addEventListener('click', () => toggleMap(true));
+$('#map-catcher').addEventListener('click', () => toggleMap(false));
+
+/* ——— karta hasła pod przytrzymaniem linku (etap 3.5) ———
+   Przytrzymanie linku (pół sekundy bez ruchu palca) zamiast systemowego menu linku pokazuje
+   małą kartę od dołu: miniatura, krótki opis i dwa pierwsze zdania hasła (żeby od razu wiedzieć,
+   czym jest), długość (słowa, czas czytania), stan czytania, które z przeczytanych haseł tu
+   linkują; Otwórz i Na później. Na komputerze to samo pod prawym przyciskiem myszy.
+   Wszystko z jednego zapytania (+ jedno o linki z przeczytanych), zapamiętane do końca sesji. */
+const PEEK_MS = 480;
+const peek = { timer: null, xy: null, at: 0, title: null, cache: new Map() };
+
+// Wyciąg bez wymowy zostawia ślady w nawiasach, np. „(; also …)” albo „()”.
+const cleanExtract = (t) => t.replace(/\s+/g, ' ').replace(/\(\s*[;,]\s*/g, '(').replace(/\(\s*\)\s?/g, '').replace(/\s+([,.;:])/g, '$1').trim();
+
+async function peekData(linkTitle) {
+  if (peek.cache.has(linkTitle)) return peek.cache.get(linkTitle);
+  const data = await api({
+    action: 'query', titles: linkTitle, redirects: '1',
+    prop: 'description|pageimages|extracts', piprop: 'thumbnail', pithumbsize: '160',
+    exintro: '1', explaintext: '1', exsentences: '2',
+    list: 'search', srsearch: linkTitle, srwhat: 'nearmatch', srnamespace: '0', srlimit: '1', srprop: 'wordcount'
+  });
+  const pg = data.query?.pages?.[0] || {};
+  const out = {
+    title: pg.title || linkTitle, missing: !!pg.missing,
+    desc: pg.description || '', extract: cleanExtract(pg.extract || ''),
+    thumb: pg.thumbnail?.source || null, words: data.query?.search?.[0]?.wordcount || 0
+  };
+  if (out.thumb && !(out.title in state.thumbs)) state.thumbs[out.title] = out.thumb;
+  peek.cache.set(linkTitle, out);
+  return out;
+}
+
+// Które z przeczytanych (przejrzanych lub doczytanych) haseł linkują do tego: prop=links z filtrem
+// pltitles sprawdza do 50 stron naraz.
+async function linkedFromRead(title) {
+  const read = [...state.reads.values()].filter((r) => r.state !== 'open' && r.title !== title).sort((a, b) => b.at - a.at).slice(0, 150).map((r) => r.title);
+  const found = [];
+  for (let i = 0; i < read.length; i += 50) {
+    const data = await api({ action: 'query', prop: 'links', pltitles: title, pllimit: 'max', titles: read.slice(i, i + 50).join('|') });
+    for (const pg of data.query?.pages || []) if (pg.links?.length) found.push(pg.title);
+  }
+  return found;
+}
+
+function fmtWords(n) {
+  const w = n >= 1000 ? `${(n / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 1 })} tys.` : String(n);
+  return `${w} słów · ok. ${Math.max(1, Math.round(n / 230))} min`;
+}
+
+function renderPeekLater() {
+  const b = $('#peek-later');
+  const on = state.saved.includes(peek.title);
+  b.setAttribute('aria-pressed', String(on));
+  b.textContent = on ? '✓ Na później' : 'Na później';
+}
+
+async function openPeek(linkTitle) {
+  const box = $('#peek');
+  peek.title = normTitle(linkTitle);
+  box.dataset.for = linkTitle;
+  $('#peek-t').textContent = linkTitle;
+  $('#peek-d').textContent = '';
+  $('#peek-x').textContent = 'Wczytuję…';
+  $('#peek-m').textContent = '';
+  $('#peek-from').hidden = true;
+  $('#peek-img').style.backgroundImage = '';
+  $('#peek-go').href = hrefFor(linkTitle);
+  renderPeekLater();
+  box.hidden = false;
+  $('#peek-catcher').hidden = false;
+  hideNote();
+  try {
+    const d = await peekData(linkTitle);
+    if (box.dataset.for !== linkTitle || box.hidden) return;
+    peek.title = d.title;
+    $('#peek-t').textContent = d.title;
+    $('#peek-d').textContent = d.desc;
+    $('#peek-x').textContent = d.missing ? 'Nie ma takiego hasła.' : d.extract;
+    $('#peek-img').style.backgroundImage = d.thumb ? `url("${d.thumb}")` : '';
+    $('#peek-img').classList.toggle('no-img', !d.thumb);
+    $('#peek-img').textContent = d.thumb ? '' : d.title[0];
+    $('#peek-go').href = hrefFor(d.title);
+    const rec = state.reads.get(d.title);
+    const m = $('#peek-m');
+    m.replaceChildren();
+    if (rec && rec.state !== 'open') {
+      const i = document.createElement('i');
+      i.className = 'st st-' + rec.state;
+      m.append(i, `${rec.read} z ${rec.n} akapitów · `);
+    }
+    if (d.words) m.append(fmtWords(d.words));
+    renderPeekLater();
+    const from = await linkedFromRead(d.title);
+    if (box.dataset.for !== linkTitle || box.hidden || !from.length) return;
+    $('#peek-from').textContent = 'Linkują tu: ' + (from.length > 4 ? from.slice(0, 4).join(', ') + ` i ${from.length - 4} inne` : from.join(', '));
+    $('#peek-from').hidden = false;
+  } catch {
+    if (box.dataset.for === linkTitle) $('#peek-x').textContent = 'Nie udało się połączyć z Wikipedią.';
+  }
+}
+
+function closePeek() {
+  $('#peek').hidden = true;
+  $('#peek-catcher').hidden = true;
+  $('#peek').dataset.for = '';
+}
+
+const cancelPeekTimer = () => { clearTimeout(peek.timer); peek.timer = null; };
+$('#article').addEventListener('pointerdown', (e) => {
+  const a = e.target.closest('a.wl');
+  if (!a || e.button > 0) return;
+  peek.xy = [e.clientX, e.clientY];
+  cancelPeekTimer();
+  peek.timer = setTimeout(() => {
+    peek.timer = null;
+    peek.at = Date.now();
+    getSelection()?.removeAllRanges();
+    openPeek(a.dataset.title);
+  }, PEEK_MS);
+});
+document.addEventListener('pointermove', (e) => {
+  if (peek.timer && Math.hypot(e.clientX - peek.xy[0], e.clientY - peek.xy[1]) > 10) cancelPeekTimer();
+}, { passive: true });
+for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, cancelPeekTimer);
+window.addEventListener('scroll', cancelPeekTimer, { passive: true });
+// Systemowe menu linku (Android po przytrzymaniu, prawy przycisk na komputerze) → nasza karta.
+$('#article').addEventListener('contextmenu', (e) => {
+  const a = e.target.closest('a.wl');
+  if (!a) return;
+  e.preventDefault();
+  cancelPeekTimer();
+  if (Date.now() - peek.at > 800) { peek.at = Date.now(); openPeek(a.dataset.title); }
+});
+$('#peek-catcher').addEventListener('click', closePeek);
+$('#peek-go').addEventListener('click', () => { state.pendingFrom = state.current; closePeek(); });
+$('#peek-later').addEventListener('click', () => {
+  const t = peek.title;
+  if (!t) return;
+  state.saved = state.saved.includes(t) ? state.saved.filter((x) => x !== t) : [t, ...state.saved];
+  store.set('saved', state.saved);
+  renderPeekLater();
+  renderPin();
+});
 
 // „Na później”: ta sama nazwa na przycisku i na półce; wciśnięty ma znaczek ✓ i kolor półki.
 function renderPin() {
@@ -1444,7 +1742,7 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('#note') && !e.target.closest('sup.reference')) hideNote();
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { hideNote(); toggleSheet(false); toggleSearch(false); state.searchFrom = null; }
+  if (e.key === 'Escape') { hideNote(); toggleSheet(false); toggleMap(false); closePeek(); toggleSearch(false); state.searchFrom = null; }
 });
 // Zamykamy dopiero po wyraźnym przewinięciu: na telefonie chowający się pasek adresu
 // też wywołuje „scroll”, a nie powinien zamykać dymka.
@@ -1461,6 +1759,8 @@ $('#note').addEventListener('click', (e) => {
 function route() {
   const m = location.hash.match(/^#\/wiki\/(.+)$/);
   meter.stop();
+  toggleMap(false);
+  closePeek();
   $('#suggestions').hidden = true;
   hideFloat();
   if (m) { toggleSearch(false); openArticle(decodeTitle(m[1])); }

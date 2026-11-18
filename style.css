@@ -312,13 +312,30 @@ main { padding: 6px var(--gutter) 48px; }
   background: var(--bg); color: var(--fg); font-size: .9rem;
 }
 .numbered li.now .go { background: var(--pop-mustard); color: var(--on-pop-light); }
+/* Kreska tropu (minimapa M3): kropki w znakach stanu, przerywany odcinek = skok, różowa = tu jesteś */
+.dots { display: flex; align-items: center; margin-top: 7px; height: 14px; }
+.dots b { flex: none; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--fg); background: var(--surface); }
+.dots b.done { background: var(--fg); }
+.dots b.open { width: 7px; height: 7px; border: 0; background: var(--muted); }
+.dots b.now { width: 14px; height: 14px; border-color: var(--on-pop-light); background: var(--pop-pink); }
+.dots b.open.now { border: 2px solid var(--on-pop-light); }
+.dots b.more { width: auto; height: auto; border: 0; background: none; font-size: .8rem; color: var(--muted); line-height: 1; padding: 0 2px; }
+.dots .seg { flex: none; width: 12px; height: 2px; background: var(--fg); }
+.dots .seg.j { background: none; border-top: 2px dashed var(--fg); height: 0; }
+.dots .seg.gap { width: 4px; background: none; }
 .big-num { font-size: 4rem; font-weight: 600; letter-spacing: -.045em; line-height: .95; font-variant-numeric: tabular-nums; }
 .chip { font-size: .8rem; font-weight: 500; padding: 6px 11px; border-radius: 999px; background: var(--pop-lime); color: var(--on-pop-light); white-space: nowrap; }
 
 /* ——— trop nad artykułem ——— */
+.trail-row { display: flex; align-items: center; gap: 6px; padding: 10px 0 2px; }
 .trail {
-  display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 2px;
+  flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto;
   scrollbar-width: none; font-size: .8rem;
+}
+/* Przycisk mapy tropu: okrągły, atramentowy, jak lupa w nagłówku */
+.map-open {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center; background: var(--pop-ink); color: var(--on-pop);
 }
 .trail::-webkit-scrollbar { display: none; }
 .trail a, .trail span {
@@ -388,7 +405,7 @@ main { padding: 6px var(--gutter) 48px; }
 }
 .article b, .article strong, .article th { font-weight: calc(var(--weight) + 250); }
 .article a { color: var(--link); text-decoration: none; }
-.article a.wl { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent); text-underline-offset: 3px; }
+.article a.wl { -webkit-touch-callout: none; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent); text-underline-offset: 3px; }
 /* Linki według stanu hasła (L2): kształt po słowie, nie sam kolor.
    Przejrzane = pusty krążek; doczytane = pełny krążek i przygaszony kolor linku. */
 .article a.wl.st-seen::after, .article a.wl.st-done::after, .note a.wl.st-seen::after, .note a.wl.st-done::after {
@@ -468,6 +485,55 @@ main { padding: 6px var(--gutter) 48px; }
   font-size: .8rem; color: var(--muted);
 }
 .attribution a { color: var(--muted); }
+
+/* ——— mapa tropu (minimapa M2): linia metra w arkuszu od dołu ——— */
+.map-sheet { max-height: 72vh; }
+.map-head { display: flex; align-items: baseline; justify-content: space-between; margin: 2px 0 8px; }
+.map-head h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.map-wrap { position: relative; }
+.map-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.map-svg .ml { fill: none; stroke: var(--fg); stroke-width: 2.5; }
+.map-svg .ml.j { stroke-dasharray: 4 4; }
+.map-svg .mk-seen { fill: var(--surface); stroke: var(--fg); stroke-width: 2.5; }
+.map-svg .mk-done { fill: var(--fg); stroke: var(--fg); stroke-width: 2.5; }
+.map-svg .mk-open { fill: var(--muted); }
+.map-svg .mk-now { fill: var(--pop-pink); }
+.map-svg .ahead { opacity: .55; }
+.map-row { display: flex; align-items: center; gap: 10px; height: 46px; padding-left: 34px; color: var(--fg); text-decoration: none; }
+.map-row.lane1 { padding-left: 64px; }
+.map-row .nm { min-width: 0; font-size: 1rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-row.now .nm { font-weight: 700; }
+.map-row.ahead { opacity: .55; }
+.map-row .meta { margin-left: auto; flex: none; font-size: .76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.map-leg { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); font-size: .78rem; color: var(--muted); }
+.map-leg span { display: inline-flex; align-items: center; gap: 5px; }
+.map-leg i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--fg); }
+.map-leg i.d { background: var(--fg); }
+.map-leg i.o { width: 7px; height: 7px; border: 0; background: var(--muted); }
+
+/* ——— karta hasła pod przytrzymaniem linku: mała, bez przyciemniania ——— */
+.peek { max-height: 46vh; }
+.peek-head { display: flex; gap: 12px; align-items: center; }
+.peek-img {
+  flex: none; width: 60px; height: 60px; border-radius: 12px; background: var(--surface-2) center / cover no-repeat;
+  display: grid; place-items: center; font-size: 1.6rem; font-weight: 600; color: var(--on-pop-light);
+}
+.peek-img.no-img { background: var(--pop-lilac); }
+.peek-tt { min-width: 0; }
+.peek-tt h3 { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; overflow-wrap: anywhere; }
+.peek-tt p { margin: 3px 0 0; font-size: .85rem; color: var(--muted); }
+.peek-x {
+  margin: 12px 0 0; font-size: .92rem; line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+.peek-m { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 0; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.peek-m .st { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 2px solid currentColor; }
+.peek-m .st-done { background: currentColor; }
+.peek-from { margin: 6px 0 0; font-size: .8rem; color: var(--muted); }
+.peek-btns { display: flex; gap: 8px; margin-top: 14px; }
+.peek-btns .pill-ink { flex: 1; justify-content: center; }
+.peek-later { background: none; font-family: inherit; }
+.peek-later[aria-pressed="true"] { background: var(--pop-mustard); border-color: transparent; color: var(--on-pop-light); }
 
 /* ——— panel „Aa”: arkusz od dołu ——— */
 .sheet-catcher { position: fixed; inset: 0; z-index: 44; }

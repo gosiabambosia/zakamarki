@@ -92,7 +92,13 @@
     </section>
 
     <section id="view-reader" class="view" hidden>
-      <nav id="trail" class="trail" aria-label="Bieżący trop"></nav>
+      <div class="trail-row">
+        <!-- Mapa tropu: arkusz z całą rodziną tropu (odgałęzienia, skoki, stan haseł). -->
+        <button id="map-open" class="map-open" type="button" aria-label="Mapa tropu" aria-expanded="false" aria-controls="map-sheet" hidden>
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="4.5" cy="3" r="2.2" fill="currentColor"/><circle cx="4.5" cy="13" r="2.2" fill="currentColor"/><circle cx="12" cy="9.5" r="2.2" fill="currentColor"/><path d="M4.5 5v6M4.5 6.5c0 2.6 3 3 6 3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </button>
+        <nav id="trail" class="trail" aria-label="Bieżący trop"></nav>
+      </div>
       <div class="reader-head">
         <h1 id="article-title"></h1>
         <div class="reader-tools">
@@ -144,6 +150,36 @@
         </div>
         <button id="sheet-reset" class="sheet-reset" type="button">Domyślne</button>
       </details>
+    </div>
+  </section>
+
+  <!-- Mapa tropu jak linia metra (etap 3.4). -->
+  <div id="map-catcher" class="sheet-catcher" hidden></div>
+  <section id="map-sheet" class="sheet map-sheet" role="dialog" aria-label="Mapa tropu" hidden>
+    <div class="sheet-inner">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="map-head"><h2>Trop</h2><span id="map-count" class="sec-count"></span></div>
+      <div id="map-body"></div>
+      <div class="map-leg" aria-hidden="true"><span><i></i>przejrzane</span><span><i class="d"></i>doczytane</span><span><i class="o"></i>otwarte</span><span><svg width="22" height="4"><path d="M0 2H22" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg>skok</span></div>
+    </div>
+  </section>
+
+  <!-- Karta hasła pod przytrzymaniem linku (etap 3.5): mała, bez przyciemniania tła. -->
+  <div id="peek-catcher" class="sheet-catcher" hidden></div>
+  <section id="peek" class="sheet peek" role="dialog" aria-label="Karta hasła" hidden>
+    <div class="sheet-inner">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="peek-head">
+        <span id="peek-img" class="peek-img" aria-hidden="true"></span>
+        <div class="peek-tt"><h3 id="peek-t" lang="en"></h3><p id="peek-d" lang="en"></p></div>
+      </div>
+      <p id="peek-x" class="peek-x" lang="en"></p>
+      <p id="peek-m" class="peek-m"></p>
+      <p id="peek-from" class="peek-from" hidden></p>
+      <div class="peek-btns">
+        <a id="peek-go" class="pill-ink" href="#">Otwórz</a>
+        <button id="peek-later" class="pill-line peek-later" type="button" aria-pressed="false">Na później</button>
+      </div>
     </div>
   </section>
 
