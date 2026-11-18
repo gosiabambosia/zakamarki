@@ -927,6 +927,41 @@ function renderTrail() {
   if (prev) { back.href = hrefFor(prev.t); back.querySelector('.t').textContent = prev.t; }
 }
 
+/* ——— linki według stanu hasła (etap 3.4, wariant L2) ———
+   Po linku do hasła przejrzanego stoi pusty krążek, po linku do doczytanego — pełny krążek,
+   a sam link jest przygaszony. Nieczytane i tylko otwarte zostają bez zmian.
+   Linki często prowadzą do przekierowań („octopuses” → Octopus), a stan czytania zapisujemy
+   pod docelowym tytułem. Jedno zapytanie generator=links&redirects=1 zwraca mapę przekierowań
+   dla wszystkich linków hasła naraz (do 500 na zapytanie); trzymamy ją do końca sesji. */
+const linkMaps = new Map();              // hasło → Map(tytuł z linku → tytuł docelowy)
+const normTitle = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+
+async function linkTargets(title) {
+  if (linkMaps.has(title)) return linkMaps.get(title);
+  const map = new Map();
+  let cont = {};
+  try {
+    for (let i = 0; i < 6; i++) {
+      const data = await api({ action: 'query', generator: 'links', titles: title, gplnamespace: '0', gpllimit: 'max', redirects: '1', ...cont });
+      for (const r of data.query?.redirects || []) map.set(r.from, r.to);
+      if (!data.continue) break;
+      cont = data.continue;
+    }
+    linkMaps.set(title, map);
+  } catch { /* bez internetu zostają dopasowania bez przekierowań */ }
+  return map;
+}
+
+const readState = (t, map) => { const n = normTitle(t); return state.reads.get(map?.get(n) || n)?.state; };
+
+function paintLinks(map) {
+  for (const a of $('#article').querySelectorAll('a.wl')) {
+    const st = readState(a.dataset.title, map);
+    a.classList.toggle('st-seen', st === 'seen');
+    a.classList.toggle('st-done', st === 'done');
+  }
+}
+
 // „Na później”: ta sama nazwa na przycisku i na półce; wciśnięty ma znaczek ✓ i kolor półki.
 function renderPin() {
   const pinned = state.saved.includes(state.current);
@@ -991,6 +1026,8 @@ async function openArticle(requested) {
     renderTrail();
     renderPin();
     meter.start(title, resumeRead === requested || resumeRead === title);
+    paintLinks(linkMaps.get(title));
+    if (!linkMaps.has(title)) linkTargets(title).then((map) => { if (token === openToken) paintLinks(map); });
   } catch (err) {
     if (token !== openToken) return;
     status.textContent = 'Nie udało się wczytać artykułu. ' + (err.message || '');
