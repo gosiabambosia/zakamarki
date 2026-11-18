@@ -60,11 +60,9 @@
         <span class="next-go" aria-hidden="true">→</span>
       </a>
 
-      <div class="sec-head"><h2>Przypięte</h2><span id="saved-count" class="sec-count"></span></div>
-      <div class="shelf-wrap">
-        <div class="shelf-glass" aria-hidden="true"></div>
-        <div id="shelf" class="shelf"></div>
-      </div>
+      <!-- Trzy półki: Czytam (okładki napełnione szkłem do poziomu przeczytanych akapitów),
+           Na później i Przeczytane (okładki za taflą plexi). Stuknięcie w nazwę rozwija siatkę. -->
+      <div id="shelves" class="shelves"></div>
 
       <div class="card">
         <div class="sec-head"><h2>Tropy</h2><span id="trails-count" class="sec-count"></span></div>
@@ -76,7 +74,7 @@
         <ul id="history-list" class="list"></ul>
       </div>
 
-      <!-- Kopia zapasowa: plik JSON z historią, tropami, przypiętymi, ustawieniami i presetami. -->
+      <!-- Kopia zapasowa: plik JSON z historią wizyt, tropami, półkami, stanem czytania, ustawieniami i presetami. -->
       <div class="card backup">
         <div class="sec-head"><h2>Kopia zapasowa</h2><span id="backup-age" class="sec-count"></span></div>
         <p id="backup-info" class="backup-info"></p>
@@ -99,7 +97,7 @@
         <h1 id="article-title"></h1>
         <div class="reader-tools">
           <button id="aa" class="aa" type="button" aria-expanded="false" aria-controls="sheet" aria-label="Ustawienia czytania">Aa</button>
-          <button id="pin" class="pin" type="button" aria-pressed="false">Przypnij</button>
+          <button id="pin" class="pin" type="button" aria-pressed="false">Na później</button>
         </div>
       </div>
       <p id="status" class="status" hidden></p>

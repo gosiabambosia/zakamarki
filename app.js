@@ -1,4 +1,5 @@
-/* Zakamarki — etap 2: wyszukiwanie, czytnik, zapis tropu, ustawienia czytania, przypisy jako dymki.
+/* Zakamarki — etap 3: wyszukiwanie, czytnik, tropy, ustawienia czytania, przypisy jako dymki,
+   pomiar głębokości czytania (akapity), trzy półki, kopia zapasowa.
    Całość działa w przeglądarce telefonu. Serwer (GitHub Pages) tylko podaje pliki. */
 
 const API = 'https://en.wikipedia.org/w/api.php';
@@ -38,16 +39,37 @@ function lsAll() {
   return out;
 }
 
+/* Wersje bazy. Przeglądarka sama wywołuje onupgradeneeded, gdy wersja w kodzie jest wyższa niż
+   zapisana; oldVersion mówi, od której zaczynamy, więc każdy krok dodaje tylko to, czego brakuje,
+   a istniejące magazyny (i dane w nich) zostają nietknięte.
+   v1: kv + history. v2: reads (stan czytania każdego hasła, etap 3.3). */
+const DB_VERSION = 2;
+
 function openDB() {
   return new Promise((resolve, reject) => {
     if (!('indexedDB' in window)) { reject(new Error('brak IndexedDB')); return; }
-    const req = indexedDB.open('zakamarki', 1);
-    req.onupgradeneeded = () => {
+    const req = indexedDB.open('zakamarki', DB_VERSION);
+    req.onupgradeneeded = (e) => {
       const db = req.result;
-      db.createObjectStore('kv');
-      db.createObjectStore('history', { autoIncrement: true }).createIndex('at', 'at');
+      if (e.oldVersion < 1) {
+        db.createObjectStore('kv');
+        db.createObjectStore('history', { autoIncrement: true }).createIndex('at', 'at');
+      }
+      if (e.oldVersion < 2) db.createObjectStore('reads', { keyPath: 'title' });
     };
-    req.onsuccess = () => resolve(req.result);
+    // Starsza wersja aplikacji otwarta w innej karcie trzyma bazę i blokuje aktualizację.
+    req.onblocked = () => {
+      const p = document.createElement('p');
+      p.className = 'status';
+      p.textContent = 'Zamknij inne karty z Zakamarkami — aplikacja aktualizuje pamięć.';
+      document.querySelector('main').prepend(p);
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      // Gdy kiedyś nowsza wersja w innej karcie zechce podnieść bazę, oddajemy ją i przeładowujemy.
+      db.onversionchange = () => { db.close(); location.reload(); };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -75,14 +97,44 @@ const store = {
       else tx('kv', 'readwrite', (kv) => { kv.put(value, key); }).catch(() => lsSet(key, value));
     }
   },
-  // Nowe otwarcie hasła: w IndexedDB dopisujemy jeden wpis zamiast przepisywać całą historię.
+  // Klucze wpisów historii w IndexedDB (wpis → klucz albo obietnica klucza), żeby wizytę
+  // dało się później uzupełnić (czas, przeczytane akapity) zamiast dopisywać nowy wpis.
+  keys: new WeakMap(),
+  // Nowa wizyta: w IndexedDB dopisujemy jeden wpis zamiast przepisywać całą historię.
   addHistory(entry, list) {
     this.cache.history = list;
-    if (this.db) tx('history', 'readwrite', (h) => { h.add(entry); }).catch(() => {});
-    else lsSet('history', list.slice(-LS_HISTORY_MAX));
+    if (this.db) {
+      const key = tx('history', 'readwrite', (h) => h.add(entry));
+      key.catch(() => {});
+      this.keys.set(entry, key);
+    } else lsSet('history', list.slice(-LS_HISTORY_MAX));
   },
   replaceHistory(list) {
-    tx('history', 'readwrite', (h) => { h.clear(); for (const e of list) h.add(e); }).catch(() => {});
+    const keys = this.keys;
+    tx('history', 'readwrite', (h) => {
+      h.clear();
+      for (const e of list) {
+        const r = h.add(e);
+        keys.set(e, new Promise((res) => { r.onsuccess = () => res(r.result); }));
+      }
+    }).catch(() => {});
+  },
+  // Zapis trwającej wizyty i stanu czytania hasła w jednej transakcji.
+  async saveVisit(entry, rec) {
+    if (!this.db) {
+      lsSet('history', state.history.slice(-LS_HISTORY_MAX));
+      lsSet('reads', Object.fromEntries(state.reads));
+      return;
+    }
+    const key = entry ? await this.keys.get(entry) : undefined;
+    tx(['history', 'reads'], 'readwrite', (h, r) => {
+      if (key !== undefined) h.put(entry, key);
+      if (rec) r.put(rec);
+    }).catch(() => {});
+  },
+  putReads(list) {
+    if (!this.db) { lsSet('reads', Object.fromEntries(state.reads)); return; }
+    tx('reads', 'readwrite', (r) => { for (const rec of list) r.put(rec); }).catch(() => {});
   }
 };
 
@@ -106,22 +158,34 @@ store.ready = (async () => {
     ]);
     keys.forEach((k, i) => { store.cache[k] = values[i]; });
     if (!('migratedAt' in store.cache)) await migrateFromLocalStorage();
-    store.cache.history = await tx('history', 'readonly', (h) => h.getAll());
+    const [hist, hkeys, reads] = await Promise.all([
+      tx('history', 'readonly', (h) => h.getAll()),
+      tx('history', 'readonly', (h) => h.getAllKeys()),
+      tx('reads', 'readonly', (r) => r.getAll())
+    ]);
+    hist.forEach((e, i) => store.keys.set(e, hkeys[i]));
+    store.cache.history = hist;
+    store.cache.reads = reads;
   } catch {
     store.db = null;                   // tryb zapasowy: localStorage jak w etapach 1–2
     store.cache = lsAll();
+    store.cache.reads = Object.values(store.cache.reads || {});
   }
 })();
 
 const state = {
-  history: [],                            // każde otwarcie: {title, at, from, j?}
-  saved: [],
+  history: [],                            // każda wizyta: {title, at, from, j?, end?, ms?, p?}
+  saved: [],                              // półka „Na później” (ręcznie)
   trails: [],
   thumbs: {},
+  reads: new Map(),                       // tytuł → stan czytania (magazyn „reads”)
+  visit: null,                            // bieżąca wizyta: {entry, fresh}
   current: null,
   pendingFrom: null,                      // ustawiane, gdy klikasz link w artykule
   pendingResume: null,                    // id tropu, gdy wracasz do niego z ekranu startowego
-  searchFrom: null                        // hasło, z którego otwarto wyszukiwarkę w czytniku (skok)
+  pendingReadResume: null,                // hasło do otwarcia na pierwszym nieprzeczytanym akapicie
+  searchFrom: null,                       // hasło, z którego otwarto wyszukiwarkę w czytniku (skok)
+  openShelves: new Set()                  // rozwinięte półki na ekranie startowym
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -248,12 +312,13 @@ function plural(n, one, few, many) {
 }
 
 /* Miniatury haseł (zdjęcie główne z prop=pageimages). Zapamiętujemy je w przeglądarce,
-   także brak zdjęcia (null), żeby nie pytać Wikipedii drugi raz o to samo. */
+   także brak zdjęcia (null), żeby nie pytać Wikipedii drugi raz o to samo. Pytamy po 50 tytułów. */
 async function loadThumbs(titles) {
-  const missing = titles.filter((t) => !(t in state.thumbs)).slice(0, 50);
-  if (missing.length) {
+  const missing = [...new Set(titles)].filter((t) => !(t in state.thumbs));
+  for (let i = 0; i < missing.length; i += 50) {
+    const part = missing.slice(i, i + 50);
     try {
-      const data = await api({ action: 'query', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '300', redirects: '1', titles: missing.join('|') });
+      const data = await api({ action: 'query', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '300', pilimit: '50', redirects: '1', titles: part.join('|') });
       const alias = {};
       for (const m of [...(data.query?.normalized || []), ...(data.query?.redirects || [])]) alias[m.to] = m.from;
       for (const pg of data.query?.pages || []) {
@@ -261,41 +326,194 @@ async function loadThumbs(titles) {
         state.thumbs[pg.title] = src;
         if (alias[pg.title]) state.thumbs[alias[pg.title]] = src;
       }
-      for (const t of missing) if (!(t in state.thumbs)) state.thumbs[t] = null;
-      store.set('thumbs', state.thumbs);
-    } catch { /* bez internetu półka pokaże kolorowe karty */ }
+      for (const t of part) if (!(t in state.thumbs)) state.thumbs[t] = null;
+    } catch { break; /* bez internetu półki pokażą kolorowe karty */ }
   }
+  if (missing.length) store.set('thumbs', state.thumbs);
   return state.thumbs;
 }
 
-const COVER_COLORS = ['var(--pop-pink)', 'var(--pop-mustard)', 'var(--pop-lime)', 'var(--pop-cobalt)', 'var(--pop-orange)'];
-function renderShelf(titles) {
-  const shelf = $('#shelf');
-  shelf.replaceChildren();
-  if (!titles.length) {
+/* ——— półki: Czytam · Na później · Przeczytane ———
+   Stan hasła wynika z pomiaru akapitów (state.reads): przejrzane = co najmniej 15% akapitów,
+   doczytane = co najmniej 75%. „Na później” to ręczna lista (state.saved); hasło, które zaczniesz
+   czytać, przechodzi z niej na półkę Czytam, a potem do Przeczytanych (z listy nie znika, więc
+   przycisk w czytniku dalej jest wciśnięty). Hasła tylko otwarte nie trafiają na żadną półkę. */
+const SEEN_AT = 0.15, DONE_AT = 0.75;
+const COVER_COLORS = ['var(--pop-pink)', 'var(--pop-mustard)', 'var(--pop-lime)', 'var(--pop-lilac)', 'var(--pop-orange)'];
+const GLASS = ['var(--pop-pink)', 'var(--pop-mustard)', 'var(--pop-lime)', 'var(--pop-lilac)', 'var(--pop-orange)'];
+const SHELF_ROW_MAX = 24;                 // w rzędzie; reszta po rozwinięciu półki
+
+function shelves() {
+  const recs = [...state.reads.values()];
+  const reading = recs.filter((r) => r.state === 'seen').sort((a, b) => b.at - a.at);
+  const done = recs.filter((r) => r.state === 'done').sort((a, b) => (b.doneAt || b.at) - (a.doneAt || a.at));
+  const busy = new Set([...reading, ...done].map((r) => r.title));
+  const later = state.saved.filter((t) => !busy.has(t));
+  return { reading, later, done };
+}
+
+// Okładka: zdjęcie hasła albo kolorowa karta z pierwszą literą.
+function coverBox(title, i, cls) {
+  const box = document.createElement('span');
+  box.className = cls;
+  const src = state.thumbs[title];
+  if (src) {
+    const im = document.createElement('img');
+    im.src = src;
+    im.alt = '';
+    im.loading = 'lazy';
+    im.decoding = 'async';
+    box.append(im);
+  } else {
+    box.classList.add('no-img');
+    box.style.background = COVER_COLORS[i % COVER_COLORS.length];
+    const l = document.createElement('i');
+    l.textContent = title[0];
+    box.append(l);
+  }
+  return box;
+}
+
+// Szkło do poziomu przeczytanych akapitów, z pomiarem „22/41”.
+function glassLevel(rec, i) {
+  const s = document.createElement('span');
+  s.className = 'lvl';
+  s.style.setProperty('--p', Math.round(100 * rec.read / Math.max(1, rec.n)));
+  s.style.setProperty('--g', GLASS[i % GLASS.length]);
+  const b = document.createElement('b');
+  b.textContent = `${rec.read}/${rec.n}`;
+  s.append(b);
+  return s;
+}
+
+// Najnowszy trop, w którym jest to hasło (stuknięcie w okładkę wznawia go w tym miejscu).
+const trailWith = (t) => { for (let i = state.trails.length - 1; i >= 0; i--) if (trailTitles(state.trails[i]).includes(t)) return state.trails[i]; return null; };
+
+function shelfLink(title, cls, resumeRead) {
+  const a = document.createElement('a');
+  a.className = cls;
+  a.href = hrefFor(title);
+  const T = trailWith(title);
+  if (T) a.dataset.resume = T.id;
+  if (resumeRead) a.dataset.readResume = title;
+  return a;
+}
+
+function label(text, cls) {
+  const s = document.createElement('span');
+  s.className = cls;
+  s.lang = 'en';                           // tytuły są angielskie: poprawne dzielenie wyrazów
+  s.textContent = text;
+  // Długie pojedyncze słowo (np. „Bioluminescence”) mniejszym pismem, zamiast łamać je byle gdzie.
+  const long = Math.max(...text.split(' ').map((w) => w.length));
+  if (long > 14) s.classList.add('xlong');
+  else if (long > 11) s.classList.add('long');
+  return s;
+}
+
+// Jedna półka: nagłówek z nazwą, liczbą i okrągłą strzałką; rząd okładek albo rozwinięta siatka.
+function shelfBlock(kind, name, items, emptyText) {
+  const sec = document.createElement('section');
+  sec.className = 'shelf-block shelf-' + kind;
+  sec.dataset.kind = kind;
+  const open = state.openShelves.has(kind) && items.length > 0;
+  const head = document.createElement('button');
+  head.type = 'button';
+  head.className = 'shelf-head';
+  head.setAttribute('aria-expanded', String(open));
+  head.innerHTML = '<h2></h2><span class="sec-count"></span><span class="chev" aria-hidden="true"></span>';
+  head.querySelector('h2').textContent = name;
+  head.querySelector('.sec-count').textContent = items.length ? `${items.length} ${plural(items.length, 'hasło', 'hasła', 'haseł')}` : '';
+  if (!items.length) head.disabled = true;
+  sec.append(head);
+
+  if (!items.length) {
     const p = document.createElement('p');
     p.className = 'empty';
-    p.textContent = 'Przypnij hasło w czytniku, a stanie tutaj na półce.';
-    shelf.append(p);
-    return;
+    p.textContent = emptyText;
+    sec.append(p);
+    return sec;
   }
-  titles.forEach((t, i) => {
-    const a = document.createElement('a');
-    a.className = 'cover';
-    a.href = hrefFor(t);
-    const label = document.createElement('span');
-    label.textContent = t;
-    a.append(label);
-    const src = state.thumbs[t];
-    if (src) a.style.backgroundImage = `url("${src}")`;
-    else {
-      a.classList.add('no-img');
-      a.style.background = COVER_COLORS[i % COVER_COLORS.length];
-      if (i % COVER_COLORS.length === 3) a.style.color = 'var(--on-pop)';
+
+  if (open) {
+    const grid = document.createElement('div');
+    grid.className = 'shelf-grid';
+    items.forEach((it, i) => {
+      const a = shelfLink(it.title, 'g-item', kind === 'reading');
+      const box = coverBox(it.title, i, 'g-cover');
+      if (kind === 'reading') box.append(glassLevel(it.rec, i));
+      a.append(box, label(it.title, 'g-title'));
+      if (it.sub) { const s = document.createElement('span'); s.className = 'g-sub'; s.textContent = it.sub; a.append(s); }
+      grid.append(a);
+    });
+    sec.append(grid);
+    return sec;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'shelf-row';
+  items.slice(0, SHELF_ROW_MAX).forEach((it, i) => {
+    if (kind === 'reading') {
+      // Czytam: okładki napełnione szkłem do poziomu przeczytanych akapitów, tytuł pod spodem.
+      const a = shelfLink(it.title, 'r-item', true);
+      const box = coverBox(it.title, i, 'r-cover');
+      box.append(glassLevel(it.rec, i));
+      a.append(box, label(it.title, 'r-title'));
+      row.append(a);
+    } else {
+      // Na później / Przeczytane: okładka za taflą plexi, tytuł na szkle.
+      const a = shelfLink(it.title, 'p-item', false);
+      a.append(coverBox(it.title, i, 'p-cover'), label(it.title, 'p-title'));
+      row.append(a);
     }
-    shelf.append(a);
   });
+  if (kind === 'reading') sec.append(row);
+  else {
+    const wrap = document.createElement('div');
+    wrap.className = 'plexi';
+    const slab = document.createElement('div');
+    slab.className = 'slab';
+    slab.setAttribute('aria-hidden', 'true');
+    wrap.append(row, slab);
+    sec.append(wrap);
+  }
+  return sec;
 }
+
+function renderShelves() {
+  const { reading, later, done } = shelves();
+  $('#shelves').replaceChildren(
+    shelfBlock('reading', 'Czytam', reading.map((r) => ({ title: r.title, rec: r, sub: `${r.read} z ${r.n} akapitów` })),
+      'Tu stają hasła, z których przeczytane jest co najmniej 15% akapitów.'),
+    shelfBlock('later', 'Na później', later.map((t) => ({ title: t })),
+      'Stuknij „Na później” w czytniku, a hasło stanie tutaj.'),
+    shelfBlock('done', 'Przeczytane', done.map((r) => ({ title: r.title, sub: `${r.n} ${plural(r.n, 'akapit', 'akapity', 'akapitów')}` })),
+      'Tu stają hasła przeczytane co najmniej w 75%.')
+  );
+}
+
+// Miniatury: najpierw rzędy (i rozwinięte półki), potem przerysowanie, jeśli coś doszło.
+function shelfTitles() {
+  const { reading, later, done } = shelves();
+  const take = (kind, list) => (state.openShelves.has(kind) ? list : list.slice(0, SHELF_ROW_MAX));
+  return [...take('reading', reading.map((r) => r.title)), ...take('later', later), ...take('done', done.map((r) => r.title))];
+}
+function refreshShelfThumbs() {
+  const want = shelfTitles();
+  if (want.some((t) => !(t in state.thumbs))) loadThumbs(want).then(() => { if (!$('#view-home').hidden) renderShelves(); });
+}
+
+// Stuknięcie w nazwę półki albo w puste miejsce na niej rozwija ją w siatkę; drugie — zwija.
+$('#shelves').addEventListener('click', (e) => {
+  if (e.target.closest('a')) return;
+  const sec = e.target.closest('.shelf-block');
+  if (!sec || !(e.target.closest('.shelf-head') || e.target.closest('.plexi, .shelf-row'))) return;
+  const kind = sec.dataset.kind;
+  if (state.openShelves.has(kind)) state.openShelves.delete(kind);
+  else state.openShelves.add(kind);
+  renderShelves();
+  refreshShelfThumbs();
+});
 
 function renderHome() {
   show('home');
@@ -323,34 +541,38 @@ function renderHome() {
   $('#hero-unit').textContent = unit;
   $('#hero-sub').textContent = sub;
 
-  // „Czytaj dalej”: miejsce, w którym jesteś w bieżącym tropie.
+  // „Czytaj dalej”: najnowsze hasło z półki Czytam, otwierane na pierwszym nieprzeczytanym
+  // akapicie. Dopóki żadne nie jest przejrzane — miejsce, w którym jesteś w bieżącym tropie.
   const T = curTrail();
+  const top = shelves().reading[0];
   const cont = $('#continue');
-  cont.hidden = !T;
-  if (T) {
-    const t = T.steps[T.pos].t;
+  const t = top ? top.title : T ? T.steps[T.pos].t : null;
+  cont.hidden = !t;
+  if (t) {
+    const tr = top ? trailWith(t) : T;
     cont.href = hrefFor(t);
-    cont.dataset.resume = T.id;
+    if (tr) cont.dataset.resume = tr.id; else delete cont.dataset.resume;
+    if (top) cont.dataset.readResume = t; else delete cont.dataset.readResume;
     cont.querySelector('.next-t').textContent = t;
-    const when = lastOpened(t);
-    cont.querySelector('.next-s').textContent = [when && ago(when), T.steps.length > 1 && `${T.pos + 1}. krok tropu`].filter(Boolean).join(' · ');
+    const when = top ? top.at : lastOpened(t);
+    cont.querySelector('.next-s').textContent = top
+      ? [`${top.read} z ${top.n} akapitów`, ago(when)].join(' · ')
+      : [when && ago(when), T.steps.length > 1 && `${T.pos + 1}. krok tropu`].filter(Boolean).join(' · ');
     const paint = () => {
       const img = cont.querySelector('.next-img');
       const src = state.thumbs[t];
-      img.textContent = src ? '' : t[0];
+      img.replaceChildren(src ? '' : t[0]);
       img.style.backgroundImage = src ? `url("${src}")` : '';
       img.classList.toggle('no-img', !src);
+      if (top) img.append(glassLevel(top, 0));
     };
     paint();
-    if (!(t in state.thumbs)) loadThumbs([t, ...state.saved]).then(() => { if (!$('#view-home').hidden) { paint(); renderShelf(state.saved); } });
+    if (!(t in state.thumbs)) loadThumbs([t]).then(() => { if (!$('#view-home').hidden) paint(); });
   }
 
-  // Półka z przypiętymi: najpierw od razu (z pamięci), potem z dociągniętymi miniaturami.
-  $('#saved-count').textContent = state.saved.length ? `${state.saved.length} ${plural(state.saved.length, 'hasło', 'hasła', 'haseł')}` : '';
-  renderShelf(state.saved);
-  if (state.saved.some((t) => !(t in state.thumbs))) loadThumbs(state.saved).then(() => {
-    if (!$('#view-home').hidden) renderShelf(state.saved);
-  });
+  // Trzy półki: najpierw od razu (z pamięci), potem z dociągniętymi miniaturami.
+  renderShelves();
+  refreshShelfThumbs();
 
   // Tropy: najnowsze pięć (z co najmniej dwoma hasłami), 0.1…; stuknięcie wznawia trop.
   const ol = $('#trails-list');
@@ -389,10 +611,13 @@ function renderHome() {
   renderBackup();
 }
 
-// Linki z ekranu startowego, które wznawiają trop (karta „Czytaj dalej”, lista tropów).
+// Linki z ekranu startowego, które wznawiają trop (karta „Czytaj dalej”, półki, lista tropów)
+// i otwierają hasło na pierwszym nieprzeczytanym akapicie („Czytaj dalej”, półka Czytam).
 document.addEventListener('click', (e) => {
-  const a = e.target.closest('a[data-resume]');
-  if (a) state.pendingResume = a.dataset.resume;
+  const a = e.target.closest('#view-home a');
+  if (!a) return;
+  if (a.dataset.resume) state.pendingResume = a.dataset.resume;
+  state.pendingReadResume = a.dataset.readResume || null;
 });
 $('#hero-search').addEventListener('click', () => toggleSearch(true));
 
@@ -400,12 +625,15 @@ $('#hero-search').addEventListener('click', () => toggleSearch(true));
    Eksport: jeden plik JSON ze wszystkim, co zapisała aplikacja (bez miniatur — to tylko pamięć
    podręczna, da się je pobrać ponownie). Import łączy plik z danymi w aplikacji, niczego nie
    zastępuje: wczytanie starej kopii nie skasuje nowszej historii. */
-const BACKUP_VERSION = 1;
+// v1: history, trails, saved, reader, presets. v2: + reads (stan czytania haseł). Import przyjmuje oba.
+const BACKUP_VERSION = 2;
 
 function backupSummary(d) {
   const n = (x) => (Array.isArray(x) ? x.length : 0);
   const trails = (d.trails || []).filter((T) => T.steps?.length > 1).length;
-  return `${n(d.history)} ${plural(n(d.history), 'otwarcie', 'otwarcia', 'otwarć')} · ${trails} ${plural(trails, 'trop', 'tropy', 'tropów')} · ${n(d.saved)} ${plural(n(d.saved), 'przypięte', 'przypięte', 'przypiętych')} · ${n(d.presets)} ${plural(n(d.presets), 'preset', 'presety', 'presetów')}`;
+  const reads = d.reads instanceof Map ? [...d.reads.values()] : Array.isArray(d.reads) ? d.reads : [];
+  const done = reads.filter((r) => r?.state === 'done').length;
+  return `${n(d.history)} ${plural(n(d.history), 'wizyta', 'wizyty', 'wizyt')} · ${trails} ${plural(trails, 'trop', 'tropy', 'tropów')} · ${n(d.saved)} na później · ${done} ${plural(done, 'przeczytane', 'przeczytane', 'przeczytanych')} · ${n(d.presets)} ${plural(n(d.presets), 'preset', 'presety', 'presetów')}`;
 }
 
 function renderBackup() {
@@ -421,7 +649,8 @@ function backupMsg(text) {
 }
 
 $('#backup-save').addEventListener('click', () => {
-  const data = { history: state.history, trails: state.trails, saved: state.saved, reader: state.reader, presets: state.presets };
+  meter.flush();
+  const data = { history: state.history, trails: state.trails, saved: state.saved, reader: state.reader, presets: state.presets, reads: [...state.reads.values()] };
   const file = { app: 'zakamarki', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), data };
   const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -436,12 +665,41 @@ $('#backup-save').addEventListener('click', () => {
   backupMsg('Zapisano plik w Pobranych: ' + a.download);
 });
 
-// Łączenie: historia po (tytuł, czas), tropy po id (wygrywa nowszy), przypięte i presety — suma.
+// Stan czytania z dwóch źródeł: suma przeczytanych akapitów, dalszy z dwóch stanów, większe liczniki.
+// Dokładne liczby (read, first) przeliczą się przy następnym otwarciu hasła.
+const STATE_RANK = { open: 0, seen: 1, done: 2 };
+function mergeRead(a, b) {
+  const newer = (b.at || 0) > (a.at || 0) ? b : a;
+  const out = { ...newer, seen: [...new Set([...(a.seen || []), ...(b.seen || [])])] };
+  out.read = Math.min(out.n || 0, Math.max(a.read || 0, b.read || 0));
+  out.state = (STATE_RANK[a.state] || 0) >= (STATE_RANK[b.state] || 0) ? a.state : b.state;
+  out.visits = Math.max(a.visits || 0, b.visits || 0);
+  out.ms = Math.max(a.ms || 0, b.ms || 0);
+  for (const k of ['seenAt', 'doneAt']) { const v = [a[k], b[k]].filter(Number.isFinite); if (v.length) out[k] = Math.min(...v); else delete out[k]; }
+  return out;
+}
+
+// Łączenie: historia po (tytuł, czas), tropy po id (wygrywa nowszy), przypięte i presety — suma,
+// stan czytania hasło po haśle (mergeRead).
 function mergeBackup(d) {
   const key = (h) => h.title + '|' + h.at;
   const hist = new Map(state.history.map((h) => [key(h), h]));
-  for (const h of d.history || []) if (h && typeof h.title === 'string' && Number.isFinite(h.at)) hist.set(key(h), h);
+  for (const h of d.history || []) {
+    if (!h || typeof h.title !== 'string' || !Number.isFinite(h.at)) continue;
+    const mine = hist.get(key(h));
+    if (!mine || (h.ms || 0) > (mine.ms || 0)) hist.set(key(h), h);   // ta sama wizyta: dłuższa wersja
+  }
   state.history = [...hist.values()].sort((a, b) => a.at - b.at);
+
+  const changed = [];
+  for (const r of Array.isArray(d.reads) ? d.reads : []) {
+    if (!r || typeof r.title !== 'string' || !Array.isArray(r.seen)) continue;
+    const mine = state.reads.get(r.title);
+    const rec = mine ? mergeRead(mine, r) : r;
+    state.reads.set(r.title, rec);
+    changed.push(rec);
+  }
+  store.putReads(changed);
 
   const trails = new Map(state.trails.map((T) => [T.id, T]));
   for (const T of d.trails || []) {
@@ -619,6 +877,11 @@ $('#article').addEventListener('click', (e) => {
   if (a.dataset.title) state.pendingFrom = state.current;
 });
 
+/* Wizyta = jedna sesja czytania hasła. Przeładowanie strony, ponowne uruchomienie aplikacji
+   albo powrót przez „Czytaj dalej” do hasła, które było ostatnie i czytane mniej niż 30 min
+   temu, to dalej ta sama wizyta: nie dopisujemy nowego wpisu, tylko uzupełniamy stary. */
+const VISIT_GAP = 30 * 60e3;
+
 function updateTrail(title) {
   const from = state.pendingFrom, resume = state.pendingResume;
   const jump = !from && !resume && state.searchFrom && state.searchFrom !== title;
@@ -626,10 +889,18 @@ function updateTrail(title) {
   applyStep(title, { from, resume, jump: !!jump });
   store.set('trails', state.trails);
 
-  const entry = { title, at: Date.now(), from: from || (jump ? state.current : null) };
+  const now = Date.now();
+  const last = state.history[state.history.length - 1];
+  if (last && last.title === title && !from && !jump && now - (last.end || last.at) < VISIT_GAP) {
+    last.end = now;
+    state.visit = { entry: last, fresh: false };
+    return;
+  }
+  const entry = { title, at: now, from: from || (jump ? state.current : null) };
   if (jump) entry.j = 1;
   state.history.push(entry);
   store.addHistory(entry, state.history);
+  state.visit = { entry, fresh: true };
 }
 
 // Trop nad artykułem: kroki przed bieżącym to linki, bieżący wyróżniony, kroki „przed tobą”
@@ -656,11 +927,12 @@ function renderTrail() {
   if (prev) { back.href = hrefFor(prev.t); back.querySelector('.t').textContent = prev.t; }
 }
 
+// „Na później”: ta sama nazwa na przycisku i na półce; wciśnięty ma znaczek ✓ i kolor półki.
 function renderPin() {
   const pinned = state.saved.includes(state.current);
   const btn = $('#pin');
   btn.setAttribute('aria-pressed', String(pinned));
-  btn.textContent = pinned ? 'Przypięte' : 'Przypnij';
+  btn.textContent = pinned ? '✓ Na później' : 'Na później';
 }
 
 $('#pin').addEventListener('click', () => {
@@ -671,7 +943,12 @@ $('#pin').addEventListener('click', () => {
   renderPin();
 });
 
+let openToken = 0;                       // chroni przed spóźnioną odpowiedzią, gdy zdążysz przejść dalej
+
 async function openArticle(requested) {
+  const token = ++openToken;
+  const resumeRead = state.pendingReadResume;
+  state.pendingReadResume = null;
   show('reader');
   const status = $('#status');
   const article = $('#article');
@@ -688,6 +965,7 @@ async function openArticle(requested) {
       action: 'parse', page: requested, prop: 'text|displaytitle',
       redirects: '1', disableeditsection: '1', disabletoc: '1'
     });
+    if (token !== openToken) return;
     if (data.error) throw new Error(data.error.info || 'Nie ma takiego hasła.');
     const p = data.parse;
     const title = p.title;
@@ -712,12 +990,181 @@ async function openArticle(requested) {
 
     renderTrail();
     renderPin();
+    meter.start(title, resumeRead === requested || resumeRead === title);
   } catch (err) {
+    if (token !== openToken) return;
     status.textContent = 'Nie udało się wczytać artykułu. ' + (err.message || '');
   }
 }
 
-/* ——— pasek postępu (zalążek pomiaru głębokości czytania z etapu 3) ——— */
+/* ——— pomiar głębokości czytania: akapity na ekranie (etap 3.3) ———
+   Jednostka pomiaru to akapit treści: <p>, cała lista albo cytat (najbardziej zewnętrzny), bez
+   tabel, infoboksu, podpisów zdjęć, przypisów i sekcji „See also”, „References” itp.
+   IntersectionObserver (obserwator przecięć) mówi przeglądarce: „daj znać, gdy ten element
+   wjedzie na ekran albo z niego zjedzie” — bez liczenia czegokolwiek przy każdym przewinięciu.
+   Dla elementów, które są teraz na ekranie, co pół sekundy dokładamy czas, jeśli karta jest
+   aktywna i akapit widać w wystarczającej części. Akapit, który był na ekranie łącznie ≥ 2 s,
+   jest przeczytany. Akapity zapamiętujemy jako krótkie skróty tekstu (hash), więc drobna edycja
+   hasła na Wikipedii nie przesuwa całego zapisu. */
+const READ_MS = 2000;
+const IDLE_MS = 3 * 60e3;                // po 3 min bez dotyku i przewijania nie liczymy czasu wizyty
+const STOP_SECTIONS = /^(see also|references|notes|footnotes|citations|sources|bibliography|further reading|external links|notes and references|references and notes|works cited|explanatory notes|general and cited references)$/i;
+const NOT_TEXT = 'table, .infobox-wrap, figure, .gallery, .reflist, .references, .mw-references-wrap, .refbegin, .hatnote, .thumb, .toc, .sidebar, .noprint';
+
+// Skrót tekstu akapitu (FNV-1a, 32 bity) — 6–7 znaków zamiast całego akapitu.
+function textHash(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36);
+}
+
+function measureUnits(root) {
+  const units = [];
+  let stop = false;
+  for (const el of root.querySelectorAll('h2, p, ul, ol, dl, blockquote')) {
+    if (el.tagName === 'H2') { stop = STOP_SECTIONS.test(el.textContent.trim()); continue; }
+    if (stop || el.closest(NOT_TEXT) || el.parentElement.closest('p, ul, ol, dl, blockquote')) continue;
+    const text = el.textContent.replace(/\[(\d+|[a-z]|note \d+)\]/gi, '').replace(/\s+/g, ' ').trim();
+    if (text.length < 20) continue;
+    units.push({ el, hash: textHash(text.slice(0, 240)) });
+  }
+  return units;
+}
+
+// Pierwszy nieprzeczytany akapit; pojedyncza „dziura” między przeczytanymi nie zatrzymuje.
+function firstUnread(flags) {
+  for (let i = 0; i < flags.length; i++) {
+    if (flags[i]) continue;
+    if (i > 0 && flags[i - 1] && flags[i + 1]) continue;
+    return i;
+  }
+  return -1;
+}
+
+const meter = {
+  m: null,                               // bieżący pomiar: {title, units, byEl, rec, seen, dwell, inView, visit, io, timer}
+  lastInput: Date.now(),
+  saveTimer: null,
+
+  start(title, resume) {
+    this.stop();
+    const units = measureUnits($('#article'));
+    if (!units.length) return;
+    const rec = state.reads.get(title) || { title, n: 0, read: 0, seen: [], state: 'open', visits: 0, ms: 0, at: Date.now() };
+    if (!rec.seen) rec.seen = [];
+    if (state.visit?.fresh || !rec.visits) rec.visits = (rec.visits || 0) + 1;
+    const m = {
+      title, units, rec, visit: state.visit?.entry || null,
+      byEl: new Map(units.map((u) => [u.el, u])),
+      seen: new Set(rec.seen), dwell: new Map(), inView: new Set(), last: performance.now()
+    };
+    this.m = m;
+    this.stats();
+    state.reads.set(title, rec);
+    this.flush();
+
+    const top = $('.bar').offsetHeight;
+    m.io = new IntersectionObserver((entries) => {
+      for (const e of entries) e.isIntersecting ? m.inView.add(e.target) : m.inView.delete(e.target);
+    }, { rootMargin: `-${top}px 0px 0px 0px` });
+    for (const u of units) if (!m.seen.has(u.hash)) m.io.observe(u.el);
+    m.timer = setInterval(() => this.tick(), 500);
+
+    if (resume && rec.first >= 0 && rec.read > 0) this.jumpTo(units[rec.first].el);
+  },
+
+  // Miejsce powrotu: przewiń do akapitu i oznacz go różową zakładką na marginesie.
+  jumpTo(el) {
+    el.classList.add('resume');
+    let y = 0;
+    const go = () => { y = Math.max(0, el.getBoundingClientRect().top + scrollY - $('.bar').offsetHeight - 24); window.scrollTo(0, y); };
+    go();
+    // Poprawka po doładowaniu obrazków nad akapitem — tylko jeśli w międzyczasie nie przewijałaś.
+    setTimeout(() => { if (this.m && el.isConnected && Math.abs(scrollY - y) < 4) go(); }, 450);
+  },
+
+  tick() {
+    const m = this.m;
+    if (!m) return;
+    const now = performance.now();
+    const dt = Math.min(now - m.last, 1000);   // uśpiona karta nie nabija czasu
+    m.last = now;
+    if (document.visibilityState !== 'visible' || $('#view-reader').hidden || !$('#sheet').hidden) return;
+    if (Date.now() - this.lastInput < IDLE_MS) {
+      m.rec.ms = (m.rec.ms || 0) + dt;
+      if (m.visit) { m.visit.ms = (m.visit.ms || 0) + dt; m.visit.end = Date.now(); }
+      m.dirty = true;
+    }
+    const top = $('.bar').offsetHeight, vh = innerHeight;
+    for (const el of m.inView) {
+      const r = el.getBoundingClientRect();
+      const visible = Math.min(r.bottom, vh) - Math.max(r.top, top);
+      // Krótki akapit: widać ≥ 60% jego wysokości. Długi: zajmuje ≥ połowę ekranu.
+      if (visible <= 0 || visible < Math.min(r.height * 0.6, (vh - top) * 0.5)) continue;
+      const d = (m.dwell.get(el) || 0) + dt;
+      m.dwell.set(el, d);
+      if (d >= READ_MS) this.markRead(el);
+    }
+    if (m.dirty && Date.now() - (m.savedAt || 0) > 10000) this.flush();
+  },
+
+  markRead(el) {
+    const m = this.m;
+    const u = m.byEl.get(el);
+    m.io.unobserve(el);
+    m.inView.delete(el);
+    if (!u || m.seen.has(u.hash)) return;
+    m.seen.add(u.hash);
+    m.rec.seen.push(u.hash);
+    if (m.visit) m.visit.p = (m.visit.p || 0) + 1;
+    this.stats();
+    m.dirty = true;
+    clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => this.flush(), 3000);
+  },
+
+  // Przelicza liczby hasła z bieżącego tekstu. Stan tylko rośnie: doczytane zostaje doczytanym.
+  stats() {
+    const { rec, units, seen } = this.m;
+    const flags = units.map((u) => seen.has(u.hash));
+    rec.n = units.length;
+    rec.read = flags.filter(Boolean).length;
+    rec.first = firstUnread(flags);
+    rec.firstHash = rec.first >= 0 ? units[rec.first].hash : null;
+    const pct = rec.read / rec.n, now = Date.now();
+    if (pct >= DONE_AT && rec.state !== 'done') { rec.state = 'done'; rec.doneAt = now; if (!rec.seenAt) rec.seenAt = now; }
+    else if (pct >= SEEN_AT && rec.state === 'open') { rec.state = 'seen'; rec.seenAt = now; }
+  },
+
+  flush() {
+    const m = this.m;
+    if (!m) return;
+    clearTimeout(this.saveTimer);
+    m.rec.at = Date.now();
+    m.dirty = false;
+    m.savedAt = Date.now();
+    store.saveVisit(m.visit, m.rec);
+  },
+
+  stop() {
+    const m = this.m;
+    if (!m) return;
+    this.flush();
+    m.io.disconnect();
+    clearInterval(m.timer);
+    document.querySelectorAll('#article .resume').forEach((el) => el.classList.remove('resume'));
+    this.m = null;
+  }
+};
+
+for (const ev of ['scroll', 'touchstart', 'pointerdown', 'keydown', 'wheel']) {
+  window.addEventListener(ev, () => { meter.lastInput = Date.now(); }, { passive: true, capture: true });
+}
+// Zapis przy zejściu z aplikacji (inna aplikacja, zgaszony ekran, zamknięcie karty).
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') meter.flush(); });
+window.addEventListener('pagehide', () => meter.flush());
+
+/* ——— pasek postępu przewijania ——— */
 function setProgress(r) { $('#progress').style.width = (Math.max(0, Math.min(1, r)) * 100) + '%'; }
 window.addEventListener('scroll', () => {
   if ($('#view-reader').hidden) return;
@@ -726,17 +1173,20 @@ window.addEventListener('scroll', () => {
   setProgress(total > 0 ? window.scrollY / total : 1);
 }, { passive: true });
 
-/* ——— szybki powrót: poprzedni krok tropu + na górę ———
-   Pokazuje się przy przewijaniu w górę (jak pasek adresu w Chrome), chowa przy czytaniu w dół
-   i blisko początku artykułu, gdzie trop jest widoczny nad tytułem. */
+/* ——— szybki powrót: poprzedni krok tropu + na górę (wariant P2) ———
+   Od chwili, gdy trop znika z ekranu (300 px), w lewym dolnym rogu stale jest różowe kółko „←”.
+   Przewijanie w górę rozwija je w pigułkę z nazwą poprzedniego kroku i pokazuje „↑”;
+   czytanie w dół zwija z powrotem do kółka. */
 let floatY = 0;
-function hideFloat() { $('#float').hidden = true; }
+function hideFloat() { $('#float').hidden = true; $('#float').classList.remove('up'); }
 window.addEventListener('scroll', () => {
   if ($('#view-reader').hidden) return;
   const y = scrollY, dy = y - floatY;
   if (Math.abs(dy) < 12) return;
   floatY = y;
-  $('#float').hidden = dy > 0 || y < 300;
+  const f = $('#float');
+  f.hidden = y < 300;
+  f.classList.toggle('up', dy < 0);
 }, { passive: true });
 $('#to-top').addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); hideFloat(); });
 
@@ -973,6 +1423,7 @@ $('#note').addEventListener('click', (e) => {
 /* ——— routing: adres #/wiki/Tytuł otwiera artykuł; przycisk „wstecz” działa naturalnie ——— */
 function route() {
   const m = location.hash.match(/^#\/wiki\/(.+)$/);
+  meter.stop();
   $('#suggestions').hidden = true;
   hideFloat();
   if (m) { toggleSearch(false); openArticle(decodeTitle(m[1])); }
@@ -985,6 +1436,7 @@ store.ready.then(() => {
   state.thumbs = store.get('thumbs', {});
   state.reader = { ...READER_DEFAULT, ...store.get('reader', {}) };
   state.presets = store.get('presets', []);
+  state.reads = new Map(store.get('reads', []).filter((r) => r?.title).map((r) => [r.title, r]));
   state.trails = loadTrails();
   applyReader();
   window.addEventListener('hashchange', route);
