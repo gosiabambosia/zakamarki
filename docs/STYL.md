@@ -48,21 +48,29 @@ Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z tre
 ### Wzorce UI
 - Ekran startowy zaczyna się od **wielkiej kobaltowej liczby dnia** („7 haseł dziś”, obok druga linijka „2 tropy · 214 w sumie”; obie linijki wyrównane do dołu liczby), pod nią **karta „Czytaj dalej”**: miniatura na całą wysokość z lewej (jak okładka, nie wklejka), tytuł, „14 min temu · 4. krok tropu”, okrągła atramentowa strzałka. Każda liczba musi być pomiarem — nigdy dekoracją. Odrzucone: duży tytuł + mała miniatura obok („jak źle wstawione zdjęcie w Wordzie”), „N kroków od hasła”.
 - **Panel „Aa”**: na wierzchu kafle presetów w ich kolorach, kroju i grubości (nazwy presetów są jej, więc zostają); pod „Dostosuj” rzędy próbek bez podpisów: tła (kafel „Aa” w kolorze tekstu na tle; „Jak telefon” = pół jasny, pół ciemny), kroje („Ag”), grubości („Aa”), suwaki z małą/dużą literą i ikoną interlinii.
-- **Pływające przyciski w czytniku (P2):** od 300 px stale różowe kółko „←” w lewym dolnym rogu; przewijanie w górę rozwija je w pigułkę z nazwą poprzedniego kroku i pokazuje okrągły atramentowy „↑”.
+- **Pływające przyciski w czytniku (P2):** od 300 px stale różowe kółko z grubą strzałką ← (ikona SVG, nie znak tekstowy — za mało wyraźny) w lewym dolnym rogu; przewijanie w górę rozwija je w pigułkę z nazwą poprzedniego kroku i pokazuje okrągły atramentowy „↑”.
 - **Trzy półki na starcie (W7 + O1):** nad półką nazwa, liczba i okrągła strzałka (rozwija siatkę). *Czytam*: okładki napełnione kolorowym szkłem do poziomu przeczytanych akapitów (lampy-grzybki), liczba „22/41” na szkle, deska pod okładkami, tytuł pod okładką. *Na później* (musztarda) i *Przeczytane* (liliowy): okładki z miękkim cieniem za matową taflą plexi, tytuł na szkle, **bez śrub**. Odrzucone: szafka o trzech poziomach, ściana z pinezkami + stos grzbietów, okładki w bałaganie, różne wysokości.
 - **Zakładka powrotu:** różowy pionowy znaczek z obrysem w kolorze tekstu na marginesie przy pierwszym nieprzeczytanym akapicie.
-- **Mapa tropu:** arkusz od dołu jak linia metra (główna linia, odgałęzienia w bok, skok przerywany, znaki stanu jak przy linkach); w karcie Tropy pod każdym tropem rząd kropek.
+- **Mapa tropu (M4 Drzewo, 2026-11-21):** arkusz od dołu jak spis treści — każde hasło stoi pod tym, z którego do niego przyszłaś (wcięcie + cienka, przygaszona kreska „└”), znak stanu przed tytułem, bieżące hasło na różowym tle, skok = przerywana kreska i etykieta „skok”. Odrzucone: linia metra M2 (przy czytaniu „gwiazdą” łuki z jednego punktu nakładały się, linie za ciężkie), gromady M5, lekka linia M6. W karcie Tropy pod każdym tropem rząd kropek.
 - **Karta hasła pod przytrzymaniem linku:** mała (≤ 46% ekranu), bez przyciemniania, znika po stuknięciu obok; mała miniatura, opis, dwa zdania wstępu, słowa i czas czytania, Otwórz / Na później. Bez liczby języków i wyświetleń (nie chce).
 - **Trop nad artykułem**: bieżący krok różowy, kroki „przed tobą” (po cofnięciu) przygaszone, skok z wyszukiwarki z przerywaną ramką.
 - **Linki według stanu hasła** (wdrożone): kropka po linku — pusty krążek = przejrzane, pełny + przygaszony kolor = doczytane (wariant L2). Te same znaki na mapie tropu i w kresce tropu.
 - **Miniatury haseł jako okładki** (zdjęcie główne z Wikipedii); brak zdjęcia → karta w kolorze akcentu z pierwszą literą (lubi te losowe kolory z palety).
-- Zdjęcia w artykule **na środku kolumny**, nie przy lewej krawędzi.
-- **Numerowane listy 0.1, 0.2…** dla tropu i kolejności; bieżący element wyróżniony akcentem.
+- **Kolumna wyjustowana (2026-11-21):** tekst wyrównany do obu krawędzi z dzieleniem wyrazów (`lang` na artykule i tytule); duże zdjęcia na **całą szerokość kolumny** (wyrównane do krawędzi tekstu, wysokie najwyżej ¾ ekranu), małe (ikony, herby) na środku w swoim rozmiarze.
+- **Lista Tropy (N2, 2026-11-21):** po lewej **dzień** tropu (dziś, wczoraj, 18 lis) zamiast numeru 0.1, 0.2 — numer pozycji niczego nie mierzył i dezorientował. Jeden wiersz na **rodzinę tropu** (trop z odgałęzieniami), z liczbą haseł i odgałęzień; nagłówek rozwija wszystkie. Numeracja 0.1 z inspiracji odrzucona.
 - **Karty** `#fff8f0` z dużym zaokrągleniem (ok. 22 px); **pigułki** (czarna = akcja główna, kolorowe = chipy z licznikami); **okrągłe przyciski** z ikoną.
 - **Wielkie liczby** w statystykach.
 - **Bloby** (organiczne kształty, wielkość = ilość) — zarezerwowane na Statystyki/Atlas, gdy będą prawdziwe dane o tematach.
 - **Bez martwych przycisków**: nie dodawać nawigacji do funkcji, których jeszcze nie ma.
 - Humor w jednej warstwie (buźka w ikonie, iskra, kropka), reszta porządna i czytelna.
+
+### Zakreślenia i dolny pasek (etap 3b, 2026-11-21)
+- **Pasek zaznaczenia (Z1)** od dołu, pod kciukiem: pięć kółek-kolorów bez podpisów, × zamyka; przy jednym angielskim słowie znaczenia z Wikisłownika, przy frazie przycisk „Tłumacz”. Systemowe menu Androida zostaje nad zaznaczeniem.
+- **Wygląd zakreślenia (K2):** marker od 1/3 wysokości liter po dolną kreskę, zaokrąglone końce, litery w kolorze tekstu. Odrzucone: B1/K1 (za nisko), B2 (za ciężkie), K3, K4 (ręczny flamaster — podobał się mniej niż równy K2).
+- **Paleta zakreślaczy „Lampy” (P2):** morska zieleń `#7ccfb9`, niebieski `#93b6f5`, morela `#f4a77f`, wrzos `#d59be0`, cytryna `#ece06a` — własna rodzina z lamp-grzybków z moodboardu, **nie powtarza akcentów interfejsu** (jej uwaga: te same kolory na miniaturach, półkach i w zakreśleniach to za dużo powtórzeń). Przezroczystość 55% w dzień, 40% na ciemnych tłach.
+- **Dolny pasek ekranów (C1):** pływająca pigułka z okrągłymi przyciskami, tylko poza czytnikiem; aktywny ekran = atramentowe kółko. Biblioteka (grzbiety książek) i **Zakreślenia — gruby, okrągły cudzysłów** z dwóch prostych kształtów (kółko + ogonek), bez drobnych końcówek, które w małym rozmiarze wyglądają jak błąd. Kolejne kółka: Węzły, Statystyki.
+- **Chip PL** obok „Aa”: obrys w kolorze tekstu w angielskim haśle, wciśnięty (pełny) w polskim.
+- **Ekran Zakreślenia:** wielka kobaltowa liczba, filtr kolorem (kółka z licznikami, „wszystkie”), karty grup po tropach z dniem po lewej, cytat w markerze w kroju czytnika, „Prowadzą do tego samego” na dole.
 
 ### Grafika i ikony
 - **Ikona aplikacji:** bąbelkowe różowe „Z” z buźką (zamknięte oczy, uśmiech) na atramencie, musztardowa iskra i limonkowa kropka po bokach litery. Źródło `icons/icon.svg`.

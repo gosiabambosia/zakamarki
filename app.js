@@ -2,11 +2,21 @@
    pomiar głębokości czytania (akapity), trzy półki, kopia zapasowa.
    Całość działa w przeglądarce telefonu. Serwer (GitHub Pages) tylko podaje pliki. */
 
-const API = 'https://en.wikipedia.org/w/api.php';
-const WIKI = 'https://en.wikipedia.org/wiki/';
+/* Język Wikipedii jest parametrem. Hasło z angielskiej to po prostu tytuł („Octopus”), hasło
+   z polskiej ma w kluczu przedrostek „pl:” („pl:Ośmiornice”) — ten sam klucz w tropach, historii,
+   stanie czytania i zakreśleniach. Angielskie tytuły zawsze zaczynają się wielką literą, więc
+   przedrostek nie może się z niczym pomylić. */
+const WIKI_LANG = 'en';
+const apiFor = (lang) => `https://${lang}.wikipedia.org/w/api.php`;
+const wikiFor = (lang) => `https://${lang}.wikipedia.org/wiki/`;
+const langOf = (key) => (key && key.startsWith('pl:') ? 'pl' : WIKI_LANG);
+const bareTitle = (key) => (key && key.startsWith('pl:') ? key.slice(3) : key);
+const shownTitle = bareTitle;
+const keyFor = (lang, t) => (lang === WIKI_LANG ? t : lang + ':' + t);
 
 // Linki do stron, które nie są hasłami (pliki, kategorie, strony pomocy itd.) otwieramy na Wikipedii.
-const NON_ARTICLE = /^(File|Image|Special|Help|Wikipedia|WP|Category|Template|Portal|Talk|User|Draft|Module|MediaWiki|Book|TimedText)(_talk)?:/i;
+// Polska Wikipedia: Plik, Kategoria, Szablon, Specjalna, Pomoc, Dyskusja, Wikiprojekt, Moduł…
+const NON_ARTICLE = /^(File|Image|Special|Help|Wikipedia|WP|Category|Template|Portal|Talk|User|Draft|Module|MediaWiki|Book|TimedText|Plik|Grafika|Kategoria|Szablon|Specjalna|Pomoc|Dyskusja|Użytkownik|Wikiprojekt|Moduł)(_talk)?:/i;
 
 // Elementy usuwane z treści: przyciski edycji, szablony nawigacyjne, ostrzeżenia redakcyjne.
 const REMOVE = [
@@ -42,8 +52,9 @@ function lsAll() {
 /* Wersje bazy. Przeglądarka sama wywołuje onupgradeneeded, gdy wersja w kodzie jest wyższa niż
    zapisana; oldVersion mówi, od której zaczynamy, więc każdy krok dodaje tylko to, czego brakuje,
    a istniejące magazyny (i dane w nich) zostają nietknięte.
-   v1: kv + history. v2: reads (stan czytania każdego hasła, etap 3.3). */
-const DB_VERSION = 2;
+   v1: kv + history. v2: reads (stan czytania każdego hasła, etap 3.3).
+   v3: highlights (zakreślenia, etap 3b) — klucz id, indeksy po haśle i czasie. */
+const DB_VERSION = 3;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -56,6 +67,11 @@ function openDB() {
         db.createObjectStore('history', { autoIncrement: true }).createIndex('at', 'at');
       }
       if (e.oldVersion < 2) db.createObjectStore('reads', { keyPath: 'title' });
+      if (e.oldVersion < 3) {
+        const h = db.createObjectStore('highlights', { keyPath: 'id' });
+        h.createIndex('title', 'title');
+        h.createIndex('at', 'at');
+      }
     };
     // Starsza wersja aplikacji otwarta w innej karcie trzyma bazę i blokuje aktualizację.
     req.onblocked = () => {
@@ -135,6 +151,15 @@ const store = {
   putReads(list) {
     if (!this.db) { lsSet('reads', Object.fromEntries(state.reads)); return; }
     tx('reads', 'readwrite', (r) => { for (const rec of list) r.put(rec); }).catch(() => {});
+  },
+  // Zakreślenia: każde osobnym wpisem (dopisanie, zmiana koloru, usunięcie jednego).
+  putHighlights(list) {
+    if (!this.db) { lsSet('highlights', state.highlights); return; }
+    tx('highlights', 'readwrite', (h) => { for (const rec of list) h.put(rec); }).catch(() => {});
+  },
+  deleteHighlight(id) {
+    if (!this.db) { lsSet('highlights', state.highlights); return; }
+    tx('highlights', 'readwrite', (h) => { h.delete(id); }).catch(() => {});
   }
 };
 
@@ -158,14 +183,16 @@ store.ready = (async () => {
     ]);
     keys.forEach((k, i) => { store.cache[k] = values[i]; });
     if (!('migratedAt' in store.cache)) await migrateFromLocalStorage();
-    const [hist, hkeys, reads] = await Promise.all([
+    const [hist, hkeys, reads, highlights] = await Promise.all([
       tx('history', 'readonly', (h) => h.getAll()),
       tx('history', 'readonly', (h) => h.getAllKeys()),
-      tx('reads', 'readonly', (r) => r.getAll())
+      tx('reads', 'readonly', (r) => r.getAll()),
+      tx('highlights', 'readonly', (h) => h.getAll())
     ]);
     hist.forEach((e, i) => store.keys.set(e, hkeys[i]));
     store.cache.history = hist;
     store.cache.reads = reads;
+    store.cache.highlights = highlights;
   } catch {
     store.db = null;                   // tryb zapasowy: localStorage jak w etapach 1–2
     store.cache = lsAll();
@@ -179,6 +206,9 @@ const state = {
   trails: [],
   thumbs: {},
   reads: new Map(),                       // tytuł → stan czytania (magazyn „reads”)
+  highlights: [],                         // zakreślenia (magazyn „highlights”), od najstarszego
+  pendingHighlight: null,                 // id zakreślenia, do którego przewinąć po otwarciu hasła
+  hlFilter: 0,                            // ekran Zakreślenia: 0 = wszystkie, 1–5 = kolor
   visit: null,                            // bieżąca wizyta: {entry, fresh}
   current: null,
   pendingFrom: null,                      // ustawiane, gdy klikasz link w artykule
@@ -191,11 +221,11 @@ const state = {
 const $ = (sel) => document.querySelector(sel);
 const encodeTitle = (t) => encodeURIComponent(t.replace(/ /g, '_'));
 const decodeTitle = (s) => decodeURIComponent(s).replace(/_/g, ' ');
-const hrefFor = (t) => '#/wiki/' + encodeTitle(t);
+const hrefFor = (key) => (langOf(key) === WIKI_LANG ? '#/wiki/' : '#/' + langOf(key) + '/wiki/') + encodeTitle(bareTitle(key));
 
-async function api(params) {
+async function api(params, lang = WIKI_LANG) {
   const q = new URLSearchParams({ format: 'json', formatversion: '2', origin: '*', ...params });
-  const res = await fetch(API + '?' + q);
+  const res = await fetch(apiFor(lang) + '?' + q);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
@@ -273,7 +303,7 @@ const lastOpened = (title) => { for (let i = state.history.length - 1; i >= 0; i
 
 /* ——— widoki ——— */
 function show(view) {
-  for (const v of ['home', 'results', 'reader']) $('#view-' + v).hidden = v !== view;
+  for (const v of ['home', 'results', 'reader', 'highlights']) $('#view-' + v).hidden = v !== view;
   document.documentElement.dataset.view = view;   // w czytniku tłem strony jest kartka
 }
 
@@ -281,7 +311,7 @@ function linkItem(title, desc) {
   const li = document.createElement('li');
   const a = document.createElement('a');
   a.href = hrefFor(title);
-  a.textContent = title;
+  a.textContent = shownTitle(title);
   if (desc) {
     const d = document.createElement('span');
     d.className = 'desc';
@@ -315,16 +345,20 @@ function plural(n, one, few, many) {
    także brak zdjęcia (null), żeby nie pytać Wikipedii drugi raz o to samo. Pytamy po 50 tytułów. */
 async function loadThumbs(titles) {
   const missing = [...new Set(titles)].filter((t) => !(t in state.thumbs));
-  for (let i = 0; i < missing.length; i += 50) {
-    const part = missing.slice(i, i + 50);
+  const parts = [];
+  for (const lang of new Set(missing.map(langOf))) {
+    const mine = missing.filter((t) => langOf(t) === lang);
+    for (let i = 0; i < mine.length; i += 50) parts.push([lang, mine.slice(i, i + 50)]);
+  }
+  for (const [lang, part] of parts) {
     try {
-      const data = await api({ action: 'query', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '300', pilimit: '50', redirects: '1', titles: part.join('|') });
+      const data = await api({ action: 'query', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '300', pilimit: '50', redirects: '1', titles: part.map(bareTitle).join('|') }, lang);
       const alias = {};
       for (const m of [...(data.query?.normalized || []), ...(data.query?.redirects || [])]) alias[m.to] = m.from;
       for (const pg of data.query?.pages || []) {
         const src = pg.thumbnail?.source || null;
-        state.thumbs[pg.title] = src;
-        if (alias[pg.title]) state.thumbs[alias[pg.title]] = src;
+        state.thumbs[keyFor(lang, pg.title)] = src;
+        if (alias[pg.title]) state.thumbs[keyFor(lang, alias[pg.title])] = src;
       }
       for (const t of part) if (!(t in state.thumbs)) state.thumbs[t] = null;
     } catch { break; /* bez internetu półki pokażą kolorowe karty */ }
@@ -368,7 +402,7 @@ function coverBox(title, i, cls) {
     box.classList.add('no-img');
     box.style.background = COVER_COLORS[i % COVER_COLORS.length];
     const l = document.createElement('i');
-    l.textContent = title[0];
+    l.textContent = shownTitle(title)[0];
     box.append(l);
   }
   return box;
@@ -402,7 +436,8 @@ function shelfLink(title, cls, resumeRead) {
 function label(text, cls) {
   const s = document.createElement('span');
   s.className = cls;
-  s.lang = 'en';                           // tytuły są angielskie: poprawne dzielenie wyrazów
+  s.lang = langOf(text);                   // poprawne dzielenie wyrazów w języku hasła
+  text = shownTitle(text);
   s.textContent = text;
   // Długie pojedyncze słowo (np. „Bioluminescence”) mniejszym pismem, zamiast łamać je byle gdzie.
   const long = Math.max(...text.split(' ').map((w) => w.length));
@@ -553,7 +588,7 @@ function renderHome() {
     cont.href = hrefFor(t);
     if (tr) cont.dataset.resume = tr.id; else delete cont.dataset.resume;
     if (top) cont.dataset.readResume = t; else delete cont.dataset.readResume;
-    cont.querySelector('.next-t').textContent = t;
+    cont.querySelector('.next-t').textContent = shownTitle(t);
     const when = top ? top.at : lastOpened(t);
     cont.querySelector('.next-s').textContent = top
       ? [`${top.read} z ${top.n} akapitów`, ago(when)].join(' · ')
@@ -561,7 +596,7 @@ function renderHome() {
     const paint = () => {
       const img = cont.querySelector('.next-img');
       const src = state.thumbs[t];
-      img.replaceChildren(src ? '' : t[0]);
+      img.replaceChildren(src ? '' : shownTitle(t)[0]);
       img.style.backgroundImage = src ? `url("${src}")` : '';
       img.classList.toggle('no-img', !src);
       if (top) img.append(glassLevel(top, 0));
@@ -574,29 +609,48 @@ function renderHome() {
   renderShelves();
   refreshShelfThumbs();
 
-  // Tropy: najnowsze pięć (z co najmniej dwoma hasłami), 0.1…; stuknięcie wznawia trop.
+  /* Tropy: jeden wiersz na rodzinę tropu (trop z odgałęzieniami — przy czytaniu „gwiazdą”
+     każde wyjście z hasła to odgałęzienie, więc osobne wiersze zalewałyby listę). Wiersz pokazuje
+     najnowszy trop z rodziny, liczbę haseł i odgałęzień całej rodziny. Od najnowszej: pięć,
+     a po stuknięciu w nagłówek wszystkie. */
+  const families = [], famSeen = new Set();
+  for (let i = realTrails.length - 1; i >= 0; i--) {
+    const fam = trailFamily(realTrails[i]);
+    const key = fam[0].id;
+    if (famSeen.has(key)) continue;
+    famSeen.add(key);
+    families.push({ tr: realTrails[i], fam });
+  }
   const ol = $('#trails-list');
   ol.replaceChildren();
-  $('#trails-count').textContent = realTrails.length ? `${realTrails.length} ${plural(realTrails.length, 'trop', 'tropy', 'tropów')}` : '';
-  const shown = realTrails.slice(-5).reverse();
+  $('#trails-count').textContent = families.length ? `${families.length} ${plural(families.length, 'trop', 'tropy', 'tropów')}` : '';
+  const head = $('#trails-head');
+  head.disabled = families.length <= TRAILS_FEW;
+  head.setAttribute('aria-expanded', String(state.trailsOpen && !head.disabled));
+  const shown = state.trailsOpen ? families : families.slice(0, TRAILS_FEW);
   if (!shown.length) {
     const li = document.createElement('li');
     li.className = 'empty';
     li.textContent = 'Kliknij link w artykule, a zacznie się trop.';
     ol.append(li);
   }
-  shown.forEach((tr, i) => {
+  shown.forEach(({ tr, fam }) => {
     const li = document.createElement('li');
-    if (tr === T) li.className = 'now';
+    if (fam.includes(T)) li.className = 'now';
     const a = document.createElement('a');
     const here = tr.steps[tr.pos].t;
     a.href = hrefFor(here);
     a.dataset.resume = tr.id;
     a.innerHTML = '<span class="n"></span><span class="t"><span class="route"></span><span class="desc"></span></span><span class="go" aria-hidden="true">→</span>';
-    a.querySelector('.n').textContent = '0.' + (i + 1);
-    a.querySelector('.route').textContent = `${tr.steps[0].t} → ${tr.steps[tr.steps.length - 1].t}`;
-    const jumps = tr.steps.filter((x) => x.j).length;
-    a.querySelector('.desc').textContent = [`${tr.steps.length} ${plural(tr.steps.length, 'hasło', 'hasła', 'haseł')}`, jumps && `${jumps} ${plural(jumps, 'skok', 'skoki', 'skoków')}`, ago(tr.end)].filter(Boolean).join(' · ');
+    // Po lewej dzień tropu (N2): pomiar zamiast numeru pozycji na liście.
+    a.querySelector('.n').textContent = dayLabel(tr.end);
+    a.querySelector('.route').textContent = `${shownTitle(tr.steps[0].t)} → ${shownTitle(tr.steps[tr.steps.length - 1].t)}`;
+    const n = new Set(fam.flatMap(trailTitles)).size;
+    const forks = fam.filter((F) => F.steps.length > 1).length - 1;
+    const jumps = new Set(fam.flatMap((F) => F.steps.filter((x) => x.j).map((x) => x.t))).size;
+    a.querySelector('.desc').textContent = [`${n} ${plural(n, 'hasło', 'hasła', 'haseł')}`,
+      forks > 0 && `${forks} ${plural(forks, 'odgałęzienie', 'odgałęzienia', 'odgałęzień')}`,
+      jumps && `${jumps} ${plural(jumps, 'skok', 'skoki', 'skoków')}`].filter(Boolean).join(' · ');
     a.querySelector('.t').append(trailDots(tr));
     li.append(a);
     ol.append(li);
@@ -611,6 +665,14 @@ function renderHome() {
   fillList($('#history-list'), recent, 'Historia pojawi się po pierwszym artykule.');
   renderBackup();
 }
+
+const TRAILS_FEW = 5;
+$('#trails-head').addEventListener('click', () => {
+  state.trailsOpen = !state.trailsOpen;
+  const y = scrollY;
+  renderHome();
+  window.scrollTo(0, y);                 // przerysowanie nie zmienia miejsca na ekranie
+});
 
 /* Kreska tropu (minimapa M3): pod każdym tropem rząd kropek, jedna na hasło, w znakach stanu
    jak przy linkach (pusty krążek = przejrzane, pełny = doczytane, mała kropka = tylko otwarte);
@@ -644,10 +706,11 @@ function trailDots(T) {
 // lista tropów, odgałęzienia na mapie) i otwierają hasło na pierwszym nieprzeczytanym akapicie
 // („Czytaj dalej”, półka Czytam).
 document.addEventListener('click', (e) => {
-  const a = e.target.closest('#view-home a, #map-sheet a');
+  const a = e.target.closest('#view-home a, #map-sheet a, #view-highlights a');
   if (!a) return;
   if (a.dataset.resume) state.pendingResume = a.dataset.resume;
   state.pendingReadResume = a.dataset.readResume || null;
+  state.pendingHighlight = a.dataset.hl || null;
 });
 $('#hero-search').addEventListener('click', () => toggleSearch(true));
 
@@ -655,15 +718,17 @@ $('#hero-search').addEventListener('click', () => toggleSearch(true));
    Eksport: jeden plik JSON ze wszystkim, co zapisała aplikacja (bez miniatur — to tylko pamięć
    podręczna, da się je pobrać ponownie). Import łączy plik z danymi w aplikacji, niczego nie
    zastępuje: wczytanie starej kopii nie skasuje nowszej historii. */
-// v1: history, trails, saved, reader, presets. v2: + reads (stan czytania haseł). Import przyjmuje oba.
-const BACKUP_VERSION = 2;
+// v1: history, trails, saved, reader, presets. v2: + reads (stan czytania haseł).
+// v3: + highlights (zakreślenia). Import przyjmuje v1–v3.
+const BACKUP_VERSION = 3;
 
 function backupSummary(d) {
   const n = (x) => (Array.isArray(x) ? x.length : 0);
   const trails = (d.trails || []).filter((T) => T.steps?.length > 1).length;
   const reads = d.reads instanceof Map ? [...d.reads.values()] : Array.isArray(d.reads) ? d.reads : [];
   const done = reads.filter((r) => r?.state === 'done').length;
-  return `${n(d.history)} ${plural(n(d.history), 'wizyta', 'wizyty', 'wizyt')} · ${trails} ${plural(trails, 'trop', 'tropy', 'tropów')} · ${n(d.saved)} na później · ${done} ${plural(done, 'przeczytane', 'przeczytane', 'przeczytanych')} · ${n(d.presets)} ${plural(n(d.presets), 'preset', 'presety', 'presetów')}`;
+  const hl = n(d.highlights);
+  return `${n(d.history)} ${plural(n(d.history), 'wizyta', 'wizyty', 'wizyt')} · ${trails} ${plural(trails, 'trop', 'tropy', 'tropów')} · ${n(d.saved)} na później · ${done} ${plural(done, 'przeczytane', 'przeczytane', 'przeczytanych')} · ${hl} ${plural(hl, 'zakreślenie', 'zakreślenia', 'zakreśleń')} · ${n(d.presets)} ${plural(n(d.presets), 'preset', 'presety', 'presetów')}`;
 }
 
 function renderBackup() {
@@ -680,7 +745,7 @@ function backupMsg(text) {
 
 $('#backup-save').addEventListener('click', () => {
   meter.flush();
-  const data = { history: state.history, trails: state.trails, saved: state.saved, reader: state.reader, presets: state.presets, reads: [...state.reads.values()] };
+  const data = { history: state.history, trails: state.trails, saved: state.saved, reader: state.reader, presets: state.presets, reads: [...state.reads.values()], highlights: state.highlights };
   const file = { app: 'zakamarki', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), data };
   const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -730,6 +795,17 @@ function mergeBackup(d) {
     changed.push(rec);
   }
   store.putReads(changed);
+
+  // Zakreślenia po id: nowe dochodzą, ten sam wpis — wygrywa nowsza zmiana (kolor).
+  const hl = new Map(state.highlights.map((h) => [h.id, h]));
+  const hlChanged = [];
+  for (const h of Array.isArray(d.highlights) ? d.highlights : []) {
+    if (!h?.id || typeof h.title !== 'string' || typeof h.text !== 'string') continue;
+    const mine = hl.get(h.id);
+    if (!mine || (h.edited || h.at || 0) > (mine.edited || mine.at || 0)) { hl.set(h.id, h); hlChanged.push(h); }
+  }
+  state.highlights = [...hl.values()].sort((a, b) => a.at - b.at);
+  store.putHighlights(hlChanged);
 
   const trails = new Map(state.trails.map((T) => [T.id, T]));
   for (const T of d.trails || []) {
@@ -838,7 +914,7 @@ $('#search-toggle').addEventListener('click', () => {
 });
 
 /* ——— czytnik ——— */
-function cleanArticle(html) {
+function cleanArticle(html, lang = WIKI_LANG) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const root = doc.body;
   root.querySelectorAll(REMOVE).forEach((n) => n.remove());
@@ -853,6 +929,18 @@ function cleanArticle(html) {
 
   root.querySelectorAll('img').forEach((img) => img.setAttribute('loading', 'lazy'));
 
+  // Zdjęcia w treści idą na całą szerokość kolumny (wyrównane do obu krawędzi tekstu), więc
+  // bierzemy największą wersję z srcset (zwykle 2× miniatury), żeby powiększone nie było rozmyte.
+  // Małe obrazki (ikony, herby, mapki < 160 px) zostają w swoim rozmiarze.
+  root.querySelectorAll('figure img, .thumb img').forEach((img) => {
+    if (img.closest('table, .infobox-wrap, .gallery') || Number(img.getAttribute('width')) < 160) return;
+    const best = (img.getAttribute('srcset') || '').split(',').map((s) => s.trim().split(/\s+/)).filter((p) => p[0])
+      .sort((a, b) => parseFloat(b[1] || '1') - parseFloat(a[1] || '1'))[0];
+    if (best) { img.setAttribute('src', best[0]); img.removeAttribute('srcset'); }
+    img.classList.add('wide');
+    img.closest('figure, .thumb')?.classList.add('wide');
+  });
+
   root.querySelectorAll('a').forEach((a) => {
     const href = a.getAttribute('href') || '';
     if (a.classList.contains('new')) {               // hasło, które nie istnieje
@@ -863,11 +951,11 @@ function cleanArticle(html) {
     } else if (href.startsWith('/wiki/')) {
       const name = decodeURIComponent(href.slice(6).split('#')[0]);
       if (NON_ARTICLE.test(name)) {
-        a.href = 'https://en.wikipedia.org' + href;
+        a.href = `https://${lang}.wikipedia.org` + href;
         a.target = '_blank';
         a.rel = 'noopener';
       } else {
-        const title = name.replace(/_/g, ' ');
+        const title = keyFor(lang, name.replace(/_/g, ' '));
         a.setAttribute('href', hrefFor(title));
         a.dataset.title = title;
         a.classList.add('wl');
@@ -896,6 +984,12 @@ function cleanArticle(html) {
 
 $('#article').addEventListener('click', (e) => {
   const a = e.target.closest('a');
+  const mk = e.target.closest('mark.hl');
+  if (mk && !a && getSelection()?.isCollapsed !== false) {
+    const h = state.highlights.find((x) => x.id === mk.dataset.hl);
+    if (h) openSelBar({ edit: h });
+    return;
+  }
   if (!a) return;
   // Puszczenie palca po przytrzymaniu linku (karta hasła) nie otwiera hasła.
   if (Date.now() - peek.at < 700) { e.preventDefault(); return; }
@@ -945,7 +1039,7 @@ function renderTrail() {
   T.steps.forEach((s, i) => {
     const here = i === T.pos;
     const el = document.createElement(here ? 'span' : 'a');
-    el.textContent = s.t;
+    el.textContent = shownTitle(s.t);
     if (!here) el.href = hrefFor(s.t);
     if (i > T.pos) el.classList.add('ahead');
     if (s.j) { el.classList.add('jump'); el.title = 'skok z wyszukiwarki'; }
@@ -957,7 +1051,7 @@ function renderTrail() {
   const prev = T.steps[T.pos - 1];
   const back = $('#back-step');
   back.hidden = !prev;
-  if (prev) { back.href = hrefFor(prev.t); back.querySelector('.t').textContent = prev.t; }
+  if (prev) { back.href = hrefFor(prev.t); back.querySelector('.t').textContent = shownTitle(prev.t); back.setAttribute('aria-label', 'Wróć do: ' + shownTitle(prev.t)); }
 }
 
 /* ——— linki według stanu hasła (etap 3.4, wariant L2) ———
@@ -967,16 +1061,18 @@ function renderTrail() {
    pod docelowym tytułem. Jedno zapytanie generator=links&redirects=1 zwraca mapę przekierowań
    dla wszystkich linków hasła naraz (do 500 na zapytanie); trzymamy ją do końca sesji. */
 const linkMaps = new Map();              // hasło → Map(tytuł z linku → tytuł docelowy)
-const normTitle = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+// Pierwsza litera tytułu wielka (Wikipedia tak zapisuje hasła); przedrostek języka zostaje.
+const normTitle = (k) => { if (!k) return k; const t = bareTitle(k); return keyFor(langOf(k), t.charAt(0).toUpperCase() + t.slice(1)); };
 
 async function linkTargets(title) {
   if (linkMaps.has(title)) return linkMaps.get(title);
   const map = new Map();
+  const lang = langOf(title);
   let cont = {};
   try {
     for (let i = 0; i < 6; i++) {
-      const data = await api({ action: 'query', generator: 'links', titles: title, gplnamespace: '0', gpllimit: 'max', redirects: '1', ...cont });
-      for (const r of data.query?.redirects || []) map.set(r.from, r.to);
+      const data = await api({ action: 'query', generator: 'links', titles: bareTitle(title), gplnamespace: '0', gpllimit: 'max', redirects: '1', ...cont }, lang);
+      for (const r of data.query?.redirects || []) map.set(keyFor(lang, r.from), keyFor(lang, r.to));
       if (!data.continue) break;
       cont = data.continue;
     }
@@ -1018,93 +1114,88 @@ function trailFamily(T) {
   return fam;
 }
 
-const MAP_ROW = 46, MAP_X = [14, 44], MAX_BRANCHES = 8;
+/* Mapa jako drzewo (wariant M4, 2026-11-21): każde hasło stoi pod tym, z którego do niego
+   przyszłaś — jak spis treści. Zbieramy kroki wszystkich tropów z rodziny w kolejności czasu;
+   pierwsze pojawienie się hasła wyznacza jego rodzica. Przy czytaniu „gwiazdą” (wychodzisz
+   z jednego hasła do kilku i wracasz) wszystkie wyjścia stoją równo pod tym hasłem. */
+const MAP_ROW = 40, MAP_IND = 20, MAP_DEPTH = 6;
+
+function familyTree(T) {
+  const nodes = new Map(), roots = [];
+  const fam = trailFamily(T).sort((a, b) => a.start - b.start);
+  for (const F of fam) {
+    F.steps.forEach((s, i) => {
+      if (nodes.has(s.t)) return;
+      const parent = i ? nodes.get(F.steps[i - 1].t) : null;
+      const n = { t: s.t, j: !!s.j, trail: F, kids: [], parent };
+      nodes.set(s.t, n);
+      (parent ? parent.kids : roots).push(n);
+    });
+  }
+  return { nodes, roots };
+}
 
 function renderMap() {
   const T = curTrail();
   if (!T) return;
-  const main = trailTitles(T);
-  // Odgałęzienia: ogon każdego tropu z rodziny po wspólnym początku z bieżącym (bez powtórzeń).
-  const branches = [], tails = new Set();
-  for (const F of trailFamily(T)) {
-    if (F === T) continue;
-    let k = 0;
-    while (k < F.steps.length && k < main.length && F.steps[k].t === main[k]) k++;
-    const tail = F.steps.slice(k);
-    const sig = (k - 1) + '|' + tail.map((s) => s.t).join('|');
-    if (!k || !tail.length || tails.has(sig)) continue;
-    tails.add(sig);
-    branches.push({ F, d: k - 1, tail });
-  }
-  branches.sort((a, b) => a.d - b.d || a.F.start - b.F.start);
-  branches.splice(MAX_BRANCHES);
+  const { nodes, roots } = familyTree(T);
+  const here = T.steps[T.pos].t;
+  const ahead = new Set(T.steps.slice(T.pos + 1).map((s) => s.t).filter((t) => !T.steps.slice(0, T.pos + 1).some((s) => s.t === t)));
 
+  // Wiersze w porządku drzewa (rodzic, potem jego dzieci w kolejności czytania).
   const rows = [];
-  T.steps.forEach((s, i) => {
-    rows.push({ t: s.t, lane: 0, j: !!s.j, now: i === T.pos, ahead: i > T.pos });
-    for (const b of branches.filter((x) => x.d === i)) {
-      b.tail.forEach((s2, k) => rows.push({ t: s2.t, lane: 1, j: !!s2.j, trail: b.F, from: k === 0 ? rows.findIndex((r) => r.lane === 0 && r.t === s.t) : null }));
-    }
-  });
+  (function walk(list, d) { for (const n of list) { n.row = rows.length; n.d = Math.min(d, MAP_DEPTH); rows.push(n); walk(n.kids, d + 1); } })(roots, 0);
 
-  const y = (r) => r * MAP_ROW + MAP_ROW / 2;
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('class', 'map-svg');
-  svg.setAttribute('width', '60');
+  svg.setAttribute('width', '10');
   svg.setAttribute('height', String(rows.length * MAP_ROW));
   svg.setAttribute('aria-hidden', 'true');
-  const path = (d, cls) => { const p = document.createElementNS(ns, 'path'); p.setAttribute('d', d); p.setAttribute('class', cls); svg.append(p); };
-  // Linie: główna między kolejnymi krokami bieżącego tropu, gałęzie od miejsca rozejścia.
-  let prevMain = -1, prevLane1 = -1;
-  rows.forEach((r, i) => {
-    if (r.lane === 0) {
-      if (prevMain >= 0) path(`M${MAP_X[0]} ${y(prevMain)} V${y(i)}`, 'ml' + (r.j ? ' j' : '') + (r.ahead ? ' ahead' : ''));
-      prevMain = i;
-    } else if (r.from !== null) {
-      const y0 = y(r.from), y1 = y(i);
-      path(`M${MAP_X[0]} ${y0} C${MAP_X[0]} ${y0 + 24} ${MAP_X[1]} ${y1 - 24} ${MAP_X[1]} ${y1}`, 'ml' + (r.j ? ' j' : ''));
-      prevLane1 = i;
-    } else {
-      path(`M${MAP_X[1]} ${y(prevLane1)} V${y(i)}`, 'ml' + (r.j ? ' j' : ''));
-      prevLane1 = i;
-    }
-  });
-  const circle = (cx, cy, rad, cls) => { const c = document.createElementNS(ns, 'circle'); c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', rad); c.setAttribute('class', cls); svg.append(c); };
-  rows.forEach((r, i) => {
-    const cx = MAP_X[r.lane], cy = y(i), mark = stepMark(r.t), dim = r.ahead ? ' ahead' : '';
-    if (r.now) circle(cx, cy, 13, 'mk-now');
-    if (mark === 'open') circle(cx, cy, 4.5, 'mk-open' + dim);
-    else circle(cx, cy, 7, 'mk-' + mark + dim);
-  });
+  const markX = (n) => 12 + n.d * MAP_IND;
+  const y = (n) => n.row * MAP_ROW + MAP_ROW / 2;
+  // Cienka kreska „└” od znaku rodzica do dziecka; przerywana, gdy dziecko to skok z wyszukiwarki.
+  for (const n of rows) {
+    if (!n.parent) continue;
+    const px = markX(n.parent), py = y(n.parent) + 8, cy = y(n), cx = markX(n) - 9;
+    const p = document.createElementNS(ns, 'path');
+    p.setAttribute('d', `M${px} ${py} V${cy - 6} Q${px} ${cy} ${px + 6} ${cy} H${cx}`);
+    p.setAttribute('class', 'ml' + (n.j ? ' j' : ''));
+    svg.append(p);
+  }
 
   const list = document.createElement('div');
   list.className = 'map-rows';
-  rows.forEach((r) => {
+  for (const n of rows) {
     const a = document.createElement('a');
-    a.className = 'map-row' + (r.now ? ' now' : '') + (r.ahead ? ' ahead' : '') + (r.lane ? ' lane1' : '');
-    a.href = hrefFor(r.t);
-    if (r.trail) a.dataset.resume = r.trail.id;
+    a.className = 'map-row' + (n.t === here ? ' now' : '') + (ahead.has(n.t) ? ' ahead' : '');
+    a.style.paddingLeft = (markX(n) - 6) + 'px';
+    a.href = hrefFor(n.t);
+    if (n.trail !== T) a.dataset.resume = n.trail.id;
+    const mk = document.createElement('i');
+    mk.className = 'mk ' + stepMark(n.t);
     const nm = document.createElement('span');
     nm.className = 'nm';
-    nm.lang = 'en';
-    nm.textContent = r.t;
-    const meta = document.createElement('span');
-    meta.className = 'meta';
-    const rec = state.reads.get(r.t);
-    meta.textContent = rec?.n ? `${rec.read}/${rec.n}` : r.j ? 'skok' : '';
-    a.append(nm, meta);
+    nm.lang = langOf(n.t);
+    nm.textContent = shownTitle(n.t);
+    a.append(mk, nm);
+    if (n.j) { const j = document.createElement('span'); j.className = 'jmp'; j.textContent = 'skok'; a.append(j); }
+    const rec = state.reads.get(n.t);
+    if (rec?.n && rec.state !== 'open') { const m = document.createElement('span'); m.className = 'meta'; m.textContent = `${rec.read}/${rec.n}`; a.append(m); }
     list.append(a);
-  });
+  }
   const wrap = document.createElement('div');
   wrap.className = 'map-wrap';
   wrap.append(svg, list);
   $('#map-body').replaceChildren(wrap);
+  // Bieżące hasło widoczne w arkuszu, nawet przy długim drzewie.
+  requestAnimationFrame(() => list.querySelector('.now')?.scrollIntoView({ block: 'nearest' }));
 
-  const n = new Set(rows.map((r) => r.t)).size;
+  const n = nodes.size;
   const jumps = rows.filter((r) => r.j).length;
+  const forks = rows.filter((r) => r.kids.length > 1).length;
   $('#map-count').textContent = [`${n} ${plural(n, 'hasło', 'hasła', 'haseł')}`,
-    branches.length && `${branches.length} ${plural(branches.length, 'odgałęzienie', 'odgałęzienia', 'odgałęzień')}`,
+    forks && `${forks} ${plural(forks, 'rozwidlenie', 'rozwidlenia', 'rozwidleń')}`,
     jumps && `${jumps} ${plural(jumps, 'skok', 'skoki', 'skoków')}`].filter(Boolean).join(' · ');
 }
 
@@ -1131,15 +1222,16 @@ const cleanExtract = (t) => t.replace(/\s+/g, ' ').replace(/\(\s*[;,]\s*/g, '(')
 
 async function peekData(linkTitle) {
   if (peek.cache.has(linkTitle)) return peek.cache.get(linkTitle);
+  const lang = langOf(linkTitle), bare = bareTitle(linkTitle);
   const data = await api({
-    action: 'query', titles: linkTitle, redirects: '1',
+    action: 'query', titles: bare, redirects: '1',
     prop: 'description|pageimages|extracts', piprop: 'thumbnail', pithumbsize: '160',
     exintro: '1', explaintext: '1', exsentences: '2',
-    list: 'search', srsearch: linkTitle, srwhat: 'nearmatch', srnamespace: '0', srlimit: '1', srprop: 'wordcount'
-  });
+    list: 'search', srsearch: bare, srwhat: 'nearmatch', srnamespace: '0', srlimit: '1', srprop: 'wordcount'
+  }, lang);
   const pg = data.query?.pages?.[0] || {};
   const out = {
-    title: pg.title || linkTitle, missing: !!pg.missing,
+    title: pg.title ? keyFor(lang, pg.title) : linkTitle, missing: !!pg.missing,
     desc: pg.description || '', extract: cleanExtract(pg.extract || ''),
     thumb: pg.thumbnail?.source || null, words: data.query?.search?.[0]?.wordcount || 0
   };
@@ -1151,10 +1243,11 @@ async function peekData(linkTitle) {
 // Które z przeczytanych (przejrzanych lub doczytanych) haseł linkują do tego: prop=links z filtrem
 // pltitles sprawdza do 50 stron naraz.
 async function linkedFromRead(title) {
-  const read = [...state.reads.values()].filter((r) => r.state !== 'open' && r.title !== title).sort((a, b) => b.at - a.at).slice(0, 150).map((r) => r.title);
+  const lang = langOf(title);
+  const read = [...state.reads.values()].filter((r) => r.state !== 'open' && r.title !== title && langOf(r.title) === lang).sort((a, b) => b.at - a.at).slice(0, 150).map((r) => bareTitle(r.title));
   const found = [];
   for (let i = 0; i < read.length; i += 50) {
-    const data = await api({ action: 'query', prop: 'links', pltitles: title, pllimit: 'max', titles: read.slice(i, i + 50).join('|') });
+    const data = await api({ action: 'query', prop: 'links', pltitles: bareTitle(title), pllimit: 'max', titles: read.slice(i, i + 50).join('|') }, lang);
     for (const pg of data.query?.pages || []) if (pg.links?.length) found.push(pg.title);
   }
   return found;
@@ -1176,7 +1269,7 @@ async function openPeek(linkTitle) {
   const box = $('#peek');
   peek.title = normTitle(linkTitle);
   box.dataset.for = linkTitle;
-  $('#peek-t').textContent = linkTitle;
+  $('#peek-t').textContent = shownTitle(linkTitle);
   $('#peek-d').textContent = '';
   $('#peek-x').textContent = 'Wczytuję…';
   $('#peek-m').textContent = '';
@@ -1191,12 +1284,12 @@ async function openPeek(linkTitle) {
     const d = await peekData(linkTitle);
     if (box.dataset.for !== linkTitle || box.hidden) return;
     peek.title = d.title;
-    $('#peek-t').textContent = d.title;
+    $('#peek-t').textContent = shownTitle(d.title);
     $('#peek-d').textContent = d.desc;
     $('#peek-x').textContent = d.missing ? 'Nie ma takiego hasła.' : d.extract;
     $('#peek-img').style.backgroundImage = d.thumb ? `url("${d.thumb}")` : '';
     $('#peek-img').classList.toggle('no-img', !d.thumb);
-    $('#peek-img').textContent = d.thumb ? '' : d.title[0];
+    $('#peek-img').textContent = d.thumb ? '' : shownTitle(d.title)[0];
     $('#peek-go').href = hrefFor(d.title);
     const rec = state.reads.get(d.title);
     const m = $('#peek-m');
@@ -1281,49 +1374,69 @@ let openToken = 0;                       // chroni przed spóźnioną odpowiedzi
 async function openArticle(requested) {
   const token = ++openToken;
   const resumeRead = state.pendingReadResume;
-  state.pendingReadResume = null;
+  const viaLink = !!state.pendingFrom;   // link w treści hasła (updateTrail zeruje to dopiero po wczytaniu)
+  const goHighlight = state.pendingHighlight;
+  state.pendingReadResume = state.pendingHighlight = null;
+  const lang = langOf(requested);
   show('reader');
   const status = $('#status');
   const article = $('#article');
-  $('#article-title').textContent = requested;
+  $('#article-title').textContent = shownTitle(requested);
+  $('#article-title').lang = lang;
   article.replaceChildren();
+  article.lang = lang;
   $('#attribution').replaceChildren();
+  $('#lang').hidden = true;
   status.hidden = false;
   status.textContent = 'Wczytuję…';
   window.scrollTo(0, 0);
   setProgress(0);
 
   try {
+    // langlinks w tym samym zapytaniu: odpowiednik hasła w drugim języku (chip PL / EN).
     const data = await api({
-      action: 'parse', page: requested, prop: 'text|displaytitle',
+      action: 'parse', page: bareTitle(requested), prop: 'text|displaytitle|langlinks',
       redirects: '1', disableeditsection: '1', disabletoc: '1'
-    });
+    }, lang);
     if (token !== openToken) return;
     if (data.error) throw new Error(data.error.info || 'Nie ma takiego hasła.');
     const p = data.parse;
-    const title = p.title;
+    const title = keyFor(lang, p.title);
     updateTrail(title);       // przed zmianą state.current: skok pamięta hasło, z którego wyszukiwano
     state.current = title;
 
     const tmp = document.createElement('div');
     tmp.innerHTML = p.displaytitle;
-    $('#article-title').textContent = tmp.textContent || title;
-    document.title = title + ' · Zakamarki';
-    article.innerHTML = cleanArticle(p.text);
+    $('#article-title').textContent = tmp.textContent || p.title;
+    document.title = p.title + ' · Zakamarki';
+    article.innerHTML = cleanArticle(p.text, lang);
     const wide = matchMedia('(min-width: 900px)').matches;
     article.querySelectorAll('.infobox-wrap').forEach((d) => { d.open = wide; });
     status.hidden = true;
 
     const src = document.createElement('a');
-    src.href = WIKI + encodeTitle(title);
+    src.href = wikiFor(lang) + encodeTitle(p.title);
     src.target = '_blank';
     src.rel = 'noopener';
     src.textContent = 'oryginał na Wikipedii';
     $('#attribution').append('Treść: Wikipedia, licencja CC BY-SA 4.0 · ', src);
 
+    renderLangChip(lang, p.langlinks || []);
     renderTrail();
     renderPin();
-    meter.start(title, resumeRead === requested || resumeRead === title);
+    paintHighlights(title);
+    /* Gdzie otworzyć hasło:
+       – stuknięcie w zakreślenie na ekranie Zakreślenia: to zakreślenie;
+       – „Czytaj dalej” i półka Czytam: pierwszy nieprzeczytany akapit z zakładką;
+       – powrót (wstecz, trop, pigułka ←, historia): tam, gdzie skończyłaś;
+       – link w treści: od początku, chyba że to hasło czytałaś przed chwilą (< 30 min) —
+         np. link z powrotem do hasła, od którego zaczął się trop. */
+    const resumeHere = resumeRead === requested || resumeRead === title;
+    const spot = state.reads.get(title)?.spot;
+    meter.start(title, resumeHere && !goHighlight);
+    const mark = goHighlight && article.querySelector(`mark[data-hl="${goHighlight}"]`);
+    if (mark) { meter.jumpTo(mark, 120, false); mark.classList.add('flash'); }
+    else if (!resumeHere && spot && (!viaLink || Date.now() - spot.at < VISIT_GAP)) meter.restore(spot);
     paintLinks(linkMaps.get(title));
     if (!linkMaps.has(title)) linkTargets(title).then((map) => { if (token === openToken) paintLinks(map); });
   } catch (err) {
@@ -1331,6 +1444,441 @@ async function openArticle(requested) {
     status.textContent = 'Nie udało się wczytać artykułu. ' + (err.message || '');
   }
 }
+
+/* Chip języka obok „Aa”: w angielskim haśle „PL” (gdy jest polski odpowiednik), w polskim —
+   wciśnięty „PL”; stuknięcie przechodzi do odpowiednika jako zwykły krok tropu. */
+function renderLangChip(lang, langlinks) {
+  const other = lang === 'pl' ? WIKI_LANG : 'pl';
+  const ll = langlinks.find((l) => l.lang === other);
+  const b = $('#lang');
+  b.hidden = !ll;
+  b.setAttribute('aria-pressed', String(lang === 'pl'));
+  b.setAttribute('aria-label', lang === 'pl' ? 'Wróć do wersji angielskiej' : 'Polska wersja hasła');
+  b.dataset.to = ll ? keyFor(other, ll.title) : '';
+}
+$('#lang').addEventListener('click', () => {
+  const to = $('#lang').dataset.to;
+  if (!to) return;
+  state.pendingFrom = state.current;
+  location.hash = hrefFor(to);
+});
+
+/* ——— zakreślenia (etap 3b) ———
+   Zakreślenie = {id, title, trail, text, prefix, suffix, pos, links, color, at, edited?}.
+   Zakotwiczenie tekstem: zapisujemy sam fragment i po 32 znaki przed nim i po nim. Po otwarciu
+   hasła szukamy „przed + fragment + po” w tekście artykułu; gdy Wikipedia zmieniła sąsiedztwo —
+   samego fragmentu najbliżej dawnego miejsca (pos). Pozycja w tekście = długość tekstu od
+   początku artykułu (Range.toString), czyli ta sama miara co textContent.
+   Kolory 1–5 (paleta „Lampy”): grupowanie ręczne, jednym stuknięciem, bez słów. */
+const HL_NAMES = ['', 'morska zieleń', 'niebieski', 'morela', 'wrzos', 'cytryna'];
+const HL_CTX = 32;
+
+function textPos(root, node, offset) {
+  const r = document.createRange();
+  r.setStart(root, 0);
+  r.setEnd(node, offset);
+  return r.toString().length;
+}
+
+function locate(text, h) {
+  const near = (needle) => {
+    let best = -1, d = Infinity;
+    for (let j = text.indexOf(needle); j !== -1; j = text.indexOf(needle, j + 1)) {
+      const dd = Math.abs(j - (h.pos || 0));
+      if (dd < d) { d = dd; best = j; }
+    }
+    return best;
+  };
+  const i = near(h.prefix + h.text + h.suffix);
+  if (i !== -1) return i + h.prefix.length;
+  return near(h.text);
+}
+
+// Owija fragment [a, b) tekstu artykułu w <mark>: tnie tylko węzły tekstowe, więc zakreślenie może
+// przechodzić przez linki i kursywę. Puste odstępy między wierszami tabel i list pomijamy.
+function wrapSpan(root, a, b, h) {
+  const nodes = [], starts = [];
+  let len = 0;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n; (n = w.nextNode());) { nodes.push(n); starts.push(len); len += n.data.length; }
+  for (let i = 0; i < nodes.length; i++) {
+    const s0 = starts[i], s1 = s0 + nodes[i].data.length;
+    if (s1 <= a || s0 >= b) continue;
+    let n = nodes[i];
+    const from = Math.max(a, s0) - s0, to = Math.min(b, s1) - s0;
+    if (!n.data.slice(from, to).trim() && /^(TABLE|TBODY|THEAD|TR|UL|OL|DL)$/.test(n.parentNode.nodeName)) continue;
+    if (to < n.data.length) n.splitText(to);
+    if (from > 0) n = n.splitText(from);
+    const m = document.createElement('mark');
+    m.className = 'hl c' + h.color;
+    m.dataset.hl = h.id;
+    n.replaceWith(m);
+    m.append(n);
+  }
+}
+
+function paintHighlights(title) {
+  const root = $('#article');
+  for (const h of state.highlights) {
+    if (h.title !== title) continue;
+    const a = locate(root.textContent, h);
+    if (a < 0) { h.lost = true; continue; }     // fragmentu już nie ma w haśle (zostaje na liście)
+    delete h.lost;
+    wrapSpan(root, a, a + h.text.length, h);
+  }
+}
+
+function highlightFromRange(range, color) {
+  const root = $('#article');
+  const text = root.textContent;
+  let s = textPos(root, range.startContainer, range.startOffset);
+  let e = textPos(root, range.endContainer, range.endOffset);
+  while (s < e && /\s/.test(text[s])) s++;
+  while (e > s && /\s/.test(text[e - 1])) e--;
+  if (e <= s) return null;
+  // Linki w zaznaczeniu, od razu jako tytuły docelowe (po przekierowaniach): z nich ekran
+  // Zakreślenia liczy, do jakich haseł prowadzą zakreślenia z różnych haseł.
+  const map = linkMaps.get(state.current);
+  const links = [...new Set([...root.querySelectorAll('a.wl')].filter((x) => range.intersectsNode(x))
+    .map((x) => { const n = normTitle(x.dataset.title); return map?.get(n) || n; }))];
+  const h = {
+    id: 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    title: state.current, trail: curTrail()?.id || null,
+    text: text.slice(s, e), prefix: text.slice(Math.max(0, s - HL_CTX), s), suffix: text.slice(e, e + HL_CTX),
+    pos: s, links, color, at: Date.now()
+  };
+  state.highlights.push(h);
+  store.putHighlights([h]);
+  wrapSpan(root, s, e, h);
+  return h;
+}
+
+const marksOf = (id) => document.querySelectorAll(`#article mark[data-hl="${id}"]`);
+function recolorHighlight(h, color) {
+  h.color = color;
+  h.edited = Date.now();
+  marksOf(h.id).forEach((m) => { m.className = 'hl c' + color; });
+  store.putHighlights([h]);
+}
+function deleteHighlight(h) {
+  state.highlights = state.highlights.filter((x) => x !== h);
+  marksOf(h.id).forEach((m) => m.replaceWith(...m.childNodes));
+  $('#article').normalize();
+  store.deleteHighlight(h.id);
+}
+
+/* Pasek zaznaczenia (Z1, na dole): pięć kółek-kolorów, × zamyka. Jedno angielskie słowo →
+   polskie znaczenia z Wikisłownika; fraza → przycisk „Tłumacz” (Google, a gdy nie odpowie —
+   MyMemory; fraza wychodzi z aplikacji dopiero po stuknięciu). Stuknięcie w zakreślenie otwiera
+   ten sam pasek: zmiana koloru albo usunięcie. */
+const sel = { range: null, text: '', edit: null, keep: false, timer: null, ask: 0 };
+
+function closeSelBar() {
+  $('#selbar').hidden = true;
+  document.documentElement.removeAttribute('data-sel');
+  sel.range = sel.edit = null;
+  sel.keep = false;
+  sel.ask++;
+}
+
+function openSelBar({ range = null, text = '', edit = null }) {
+  Object.assign(sel, { range, text, edit, keep: !!edit });
+  const bar = $('#selbar');
+  bar.querySelectorAll('.hc').forEach((b) => b.setAttribute('aria-pressed', String(!!edit && Number(b.dataset.c) === edit.color)));
+  $('#sb-del').hidden = !edit;
+  const more = $('#sb-more');
+  more.replaceChildren();
+  more.hidden = true;
+  const lang = langOf(state.current);
+  const phrase = edit ? edit.text : text;
+  if (lang === 'en' && phrase) {
+    const word = phrase.match(/^[A-Za-z][A-Za-z'’-]*[A-Za-z]$/) ? phrase.replace(/’/g, "'") : null;
+    if (word && !edit) showDict(word, ++sel.ask);
+    else { more.append(translateButton(phrase)); more.hidden = false; }
+  }
+  bar.hidden = false;
+  document.documentElement.dataset.sel = '1';
+}
+
+const node = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+function translateButton(phrase) {
+  const b = node('button', 'sb-tr', 'Tłumacz');
+  b.type = 'button';
+  b.addEventListener('click', async () => {
+    const ask = sel.ask;
+    b.disabled = true;
+    b.textContent = 'Tłumaczę…';
+    const r = await translate(phrase);
+    if (ask !== sel.ask) return;
+    const more = $('#sb-more');
+    if (r) {
+      const p = node('p', 'sb-out', r.t);
+      p.lang = 'pl';
+      more.replaceChildren(p, node('small', 'sb-src', r.src));
+    } else {
+      const a = node('a', 'sb-ext', 'Tłumacz Google ↗');
+      a.href = 'https://translate.google.com/?sl=en&tl=pl&op=translate&text=' + encodeURIComponent(phrase.slice(0, 1500));
+      a.target = '_blank';
+      a.rel = 'noopener';
+      more.replaceChildren(node('p', 'sb-note', 'Tłumacz nie odpowiada.'), a);
+    }
+  });
+  return b;
+}
+
+document.addEventListener('selectionchange', () => {
+  clearTimeout(sel.timer);
+  sel.timer = setTimeout(() => {
+    if ($('#view-reader').hidden) return;
+    const s = getSelection();
+    if (!s.rangeCount || s.isCollapsed) { if (!sel.keep && !$('#selbar').hidden && !sel.edit) closeSelBar(); return; }
+    const r = s.getRangeAt(0);
+    if (!$('#article').contains(r.commonAncestorContainer)) return;
+    const text = s.toString().replace(/\s+/g, ' ').trim();
+    if (text && text !== sel.text) openSelBar({ range: r.cloneRange(), text });
+    else if (text) sel.range = r.cloneRange();
+  }, 220);
+});
+// Dotknięcie paska trzyma go otwartym, nawet gdy telefon w tym momencie zdejmie zaznaczenie.
+$('#selbar').addEventListener('pointerdown', () => { sel.keep = true; });
+$('#selbar').addEventListener('click', (e) => {
+  const c = e.target.closest('.hc');
+  if (c) {
+    const color = Number(c.dataset.c);
+    if (sel.edit) recolorHighlight(sel.edit, color);
+    else if (sel.range) highlightFromRange(sel.range, color);
+    getSelection()?.removeAllRanges();
+    closeSelBar();
+  } else if (e.target.closest('#sb-del') && sel.edit) {
+    deleteHighlight(sel.edit);
+    closeSelBar();
+  } else if (e.target.closest('#sb-x')) {
+    getSelection()?.removeAllRanges();
+    closeSelBar();
+  }
+});
+// Stuknięcie obok (bez zaznaczenia) zamyka pasek; stuknięcie w zakreślenie otwiera je do edycji.
+document.addEventListener('click', (e) => {
+  if ($('#selbar').hidden || e.target.closest('#selbar')) return;
+  if (e.target.closest('#article mark.hl') && !e.target.closest('a')) return;
+  if (getSelection()?.isCollapsed !== false) closeSelBar();
+});
+
+/* Słownik: polskie znaczenia angielskiego słowa z Wikisłownika (pl.wiktionary). Pytamy naraz
+   o kilka form (camouflaged → camouflage, octopuses → octopus), w kolejności od dosłownej. */
+const dictCache = new Map();
+function wordVariants(w) {
+  const out = [];
+  const add = (x) => { if (x.length > 1 && !out.includes(x)) out.push(x); };
+  const l = w.toLowerCase();
+  add(w); add(l);
+  if (/ies$/.test(l)) add(l.slice(0, -3) + 'y');
+  if (/(s|x|z|ch|sh)es$/.test(l)) add(l.slice(0, -2));
+  if (/s$/.test(l) && !/ss$/.test(l)) add(l.slice(0, -1));
+  if (/ied$/.test(l)) add(l.slice(0, -3) + 'y');
+  if (/ed$/.test(l)) { add(l.slice(0, -1)); add(l.slice(0, -2)); if (/([^aeiou])\1ed$/.test(l)) add(l.slice(0, -3)); }
+  if (/ing$/.test(l)) { add(l.slice(0, -3)); add(l.slice(0, -3) + 'e'); if (/([^aeiou])\1ing$/.test(l)) add(l.slice(0, -4)); }
+  if (/ly$/.test(l)) add(l.slice(0, -2));
+  return out.slice(0, 10);
+}
+
+// Wikitekst → [{pos: 'rzeczownik', items: ['kamuflaż', …]}] z sekcji angielskiej, pola {{znaczenia}}.
+function parseWikt(wt) {
+  const sec = wt.match(/==[^=\n]*\(\{\{język angielski\}\}\)\s*==([\s\S]*?)(?=\n==[^=]|$)/);
+  if (!sec) return [];
+  const block = sec[1].match(/\{\{znaczenia\}\}([\s\S]*?)(?=\n\{\{[^}\n]+\}\}\s*\n|$)/);
+  if (!block) return [];
+  const clean = (t) => t.replace(/<ref[^>]*\/>|<ref[\s\S]*?<\/ref>|<!--[\s\S]*?-->/g, '')
+    .replace(/\{\{[^{}]*\}\}/g, '').replace(/\[\[(?:[^|\]]*\|)?([^\]]*)\]\]/g, '$1')
+    .replace(/'{2,}/g, '').replace(/\s+/g, ' ').replace(/^[\s;,]+|[\s;,]+$/g, '');
+  const groups = [];
+  for (const line of block[1].split('\n')) {
+    const pos = line.match(/^''(.+?)''/);
+    if (pos) { groups.push({ pos: clean(pos[1]).replace(/,.*$/, ''), items: [] }); continue; }
+    const m = line.match(/^:\s*\(\d+\.\d+\)\s*(.*)$/);
+    if (m && groups.length) { const t = clean(m[1]); if (t && !groups[groups.length - 1].items.includes(t)) groups[groups.length - 1].items.push(t); }
+  }
+  return groups.filter((g) => g.items.length);
+}
+
+async function lookup(word) {
+  if (dictCache.has(word)) return dictCache.get(word);
+  const vs = wordVariants(word);
+  const q = new URLSearchParams({ action: 'query', prop: 'revisions', rvprop: 'content', rvslots: 'main', titles: vs.join('|'), format: 'json', formatversion: '2', origin: '*' });
+  const data = await fetch('https://pl.wiktionary.org/w/api.php?' + q).then((r) => r.json());
+  const byTitle = new Map((data.query?.pages || []).filter((p) => !p.missing).map((p) => [p.title, p.revisions?.[0]?.slots?.main?.content || '']));
+  let out = null;
+  for (const v of vs) {
+    const groups = byTitle.has(v) ? parseWikt(byTitle.get(v)) : [];
+    if (groups.length) { out = { word: v, groups }; break; }
+  }
+  dictCache.set(word, out);
+  return out;
+}
+
+async function showDict(word, ask) {
+  const more = $('#sb-more');
+  more.replaceChildren(node('p', 'sb-note', 'Szukam w Wikisłowniku…'));
+  more.hidden = false;
+  let d = null;
+  try { d = await lookup(word); } catch {}
+  if (ask !== sel.ask) return;
+  if (!d) {
+    more.replaceChildren(node('p', 'sb-note', 'Tego słowa nie ma w Wikisłowniku.'), translateButton(word));
+    return;
+  }
+  const box = node('div', 'dict');
+  const head = node('div', 'dict-w');
+  const w = node('b', null, d.word);
+  w.lang = 'en';
+  head.append(w);
+  box.append(head);
+  for (const g of d.groups.slice(0, 3)) {
+    const row = node('p', 'dict-g');
+    row.append(node('small', null, g.pos), ' ', g.items.slice(0, 4).join(' · '));
+    box.append(row);
+  }
+  const src = node('a', 'sb-src', 'Wikisłownik ↗');
+  src.href = 'https://pl.wiktionary.org/wiki/' + encodeURIComponent(d.word);
+  src.target = '_blank';
+  src.rel = 'noopener';
+  box.append(src);
+  more.replaceChildren(box);
+}
+
+// Tłumaczenie frazy: Google (nieoficjalny adres jego wtyczki), a gdy nie odpowie — MyMemory.
+async function translate(text) {
+  const q = text.slice(0, 1000);
+  try {
+    const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pl&dt=t&q=' + encodeURIComponent(q));
+    if (r.ok) { const j = await r.json(); const t = (j?.[0] || []).map((x) => x?.[0] || '').join('').trim(); if (t) return { t, src: 'Google Tłumacz' }; }
+  } catch {}
+  try {
+    const r = await fetch('https://api.mymemory.translated.net/get?langpair=en|pl&q=' + encodeURIComponent(q.slice(0, 480)));
+    const j = await r.json();
+    const t = j?.responseData?.translatedText;
+    if (Number(j?.responseStatus) === 200 && t && !/MYMEMORY WARNING/i.test(t)) return { t, src: 'MyMemory' };
+  } catch {}
+  return null;
+}
+
+/* ——— ekran Zakreślenia ———
+   Wielka liczba, filtr kolorem (kółka z licznikami), grupy po tropach (dzień + trasa tropu),
+   na dole hasła, do których prowadzą linki z zakreśleń w co najmniej dwóch różnych hasłach
+   (przyszli kandydaci na Węzły). Stuknięcie w zakreślenie otwiera hasło w tym miejscu. */
+const MONTHS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+function dayLabel(at) {
+  const d = new Date(at), today = new Date().setHours(0, 0, 0, 0);
+  const day = new Date(at).setHours(0, 0, 0, 0);
+  if (day === today) return 'dziś';
+  if (day === today - 864e5) return 'wczoraj';
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}` + (d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : '');
+}
+
+function renderHighlights() {
+  show('highlights');
+  document.title = 'Zakreślenia · Zakamarki';
+  setProgress(0);
+  window.scrollTo(0, 0);
+  const all = state.highlights;
+  const list = state.hlFilter ? all.filter((h) => h.color === state.hlFilter) : all;
+  const nT = new Set(list.map((h) => h.title)).size, nR = new Set(list.map((h) => h.trail).filter(Boolean)).size;
+  $('#hl-num').textContent = list.length;
+  $('#hl-unit').textContent = plural(list.length, 'zakreślenie', 'zakreślenia', 'zakreśleń');
+  $('#hl-sub').textContent = list.length ? `w ${nT} ${nT === 1 ? 'haśle' : 'hasłach'}` + (nR ? ` · ${nR} ${nR === 1 ? 'tropie' : 'tropach'}` : '') : '';
+
+  // Filtr kolorem: „wszystkie” i pięć kółek z licznikami; stuknięcie w wybrany kolor zdejmuje filtr.
+  const f = $('#hl-filter');
+  f.hidden = !all.length;
+  f.replaceChildren();
+  const allB = node('button', 'hf-all', `wszystkie ${all.length}`);
+  allB.type = 'button';
+  allB.setAttribute('aria-pressed', String(!state.hlFilter));
+  allB.dataset.c = '0';
+  f.append(allB);
+  for (let c = 1; c <= 5; c++) {
+    const n = all.filter((h) => h.color === c).length;
+    const b = node('button', 'hf c' + c, n ? String(n) : '');
+    b.type = 'button';
+    b.dataset.c = String(c);
+    b.disabled = !n;
+    b.setAttribute('aria-pressed', String(state.hlFilter === c));
+    b.setAttribute('aria-label', `${HL_NAMES[c]}: ${n}`);
+    f.append(b);
+  }
+
+  // Grupy po tropach (cała rodzina tropu, jak na liście Tropy), od najświeższej; w grupie
+  // w kolejności zakreślania.
+  const byId = new Map(state.trails.map((T) => [T.id, T]));
+  const famOf = new Map();
+  const groups = new Map();
+  for (const h of list) {
+    let k = 'x:' + h.title;
+    const T = byId.get(h.trail);
+    if (T) {
+      if (!famOf.has(T.id)) famOf.set(T.id, trailFamily(T));
+      k = famOf.get(T.id)[0].id;
+    }
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(h);
+  }
+  const box = $('#hl-groups');
+  box.replaceChildren();
+  if (!list.length) box.append(node('p', 'empty', all.length ? 'Brak zakreśleń w tym kolorze.' : 'Zaznacz fragment w czytniku i stuknij kolor na pasku na dole — zakreślenie trafi tutaj.'));
+  const sorted = [...groups.values()].sort((a, b) => b[b.length - 1].at - a[a.length - 1].at);
+  for (const g of sorted) {
+    const fam = famOf.get(g[0].trail);
+    const newest = fam && fam.reduce((a, b) => ((b.end || 0) > (a.end || 0) ? b : a));
+    const card = node('div', 'card hl-card');
+    const head = node('div', 'hl-head');
+    head.append(node('span', 'hl-day', dayLabel(g[g.length - 1].at)),
+      node('span', 'hl-route', fam && new Set(fam.flatMap(trailTitles)).size > 1 ? `${shownTitle(fam[0].steps[0].t)} → ${shownTitle(newest.steps[newest.steps.length - 1].t)}` : shownTitle(g[0].title)));
+    card.append(head);
+    for (const h of g) {
+      const a = node('a', 'hl-item');
+      a.href = hrefFor(h.title);
+      a.dataset.hl = h.id;
+      if (h.trail && byId.has(h.trail)) a.dataset.resume = h.trail;
+      const q = node('span', 'hl-q');
+      q.lang = langOf(h.title);
+      const txt = h.text.replace(/\s+/g, ' ');
+      q.append(node('mark', 'hl c' + h.color, txt.length > 240 ? txt.slice(0, 240) + '…' : txt));
+      a.append(q, node('span', 'hl-src', `${shownTitle(h.title)} · ${ago(h.at)}` + (h.lost ? ' · fragmentu już nie ma w haśle' : '')));
+      card.append(a);
+    }
+    box.append(card);
+  }
+
+  // Wspólne cele: hasło, do którego prowadzą linki z zakreśleń w ≥ 2 różnych hasłach.
+  const targets = new Map();
+  for (const h of list) for (const t of h.links || []) {
+    if (t === h.title) continue;
+    if (!targets.has(t)) targets.set(t, { n: 0, from: new Set() });
+    const x = targets.get(t);
+    x.n++;
+    x.from.add(h.title);
+  }
+  const common = [...targets.entries()].filter(([, x]) => x.from.size >= 2).sort((a, b) => b[1].from.size - a[1].from.size || b[1].n - a[1].n).slice(0, 8);
+  $('#hl-common').hidden = !common.length;
+  $('#hl-common-list').replaceChildren(...common.map(([t, x]) => {
+    const li = node('li');
+    const a = node('a');
+    a.href = hrefFor(t);
+    const from = [...x.from].map(shownTitle);
+    a.append(node('span', 'hc-t', '→ ' + shownTitle(t)),
+      node('span', 'hc-s', `${x.n} ${plural(x.n, 'zakreślenie', 'zakreślenia', 'zakreśleń')} z ${from.length > 3 ? from.slice(0, 3).join(', ') + ` i ${from.length - 3} innych` : from.join(', ')}`));
+    li.append(a);
+    return li;
+  }));
+}
+$('#hl-filter').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const c = Number(b.dataset.c);
+  state.hlFilter = state.hlFilter === c ? 0 : c;
+  renderHighlights();
+});
 
 /* ——— pomiar głębokości czytania: akapity na ekranie (etap 3.3) ———
    Jednostka pomiaru to akapit treści: <p>, cała lista albo cytat (najbardziej zewnętrzny), bez
@@ -1391,7 +1939,7 @@ const meter = {
     const m = {
       title, units, rec, visit: state.visit?.entry || null,
       byEl: new Map(units.map((u) => [u.el, u])),
-      seen: new Set(rec.seen), dwell: new Map(), inView: new Set(), last: performance.now()
+      seen: new Set(rec.seen), dwell: new Map(), inView: new Set(), last: performance.now(), t0: performance.now()
     };
     this.m = m;
     this.stats();
@@ -1408,14 +1956,35 @@ const meter = {
     if (resume && rec.first >= 0 && rec.read > 0) this.jumpTo(units[rec.first].el);
   },
 
-  // Miejsce powrotu: przewiń do akapitu i oznacz go różową zakładką na marginesie.
-  jumpTo(el) {
-    el.classList.add('resume');
+  // Miejsce powrotu: przewiń do akapitu (dy = odstęp od paska u góry); mark = różowa zakładka na marginesie.
+  jumpTo(el, dy = 24, mark = true) {
+    if (mark) el.classList.add('resume');
     let y = 0;
-    const go = () => { y = Math.max(0, el.getBoundingClientRect().top + scrollY - $('.bar').offsetHeight - 24); window.scrollTo(0, y); };
+    const go = () => { y = Math.max(0, el.getBoundingClientRect().top + scrollY - $('.bar').offsetHeight - dy); window.scrollTo(0, y); };
     go();
     // Poprawka po doładowaniu obrazków nad akapitem — tylko jeśli w międzyczasie nie przewijałaś.
-    setTimeout(() => { if (this.m && el.isConnected && Math.abs(scrollY - y) < 4) go(); }, 450);
+    for (const ms of [250, 700]) setTimeout(() => { if (el.isConnected && Math.abs(scrollY - y) < 4) go(); }, ms);
+  },
+
+  /* Miejsce, w którym skończyłaś: pierwszy akapit przy górnej krawędzi ekranu (jego skrót)
+     i jego odstęp od paska, a na zapas zwykła pozycja w pikselach. Zapisywane w stanie czytania
+     hasła (rec.spot), więc przetrwa też zamknięcie aplikacji. Na samej górze hasła — brak miejsca. */
+  spotNow() {
+    const m = this.m;
+    if (!m || scrollY < 150) return null;
+    const top = $('.bar').offsetHeight;
+    for (const u of m.units) {
+      const r = u.el.getBoundingClientRect();
+      if (r.bottom > top + 8) return { h: u.hash, dy: Math.round(r.top - top), y: Math.round(scrollY), at: Date.now() };
+    }
+    return { y: Math.round(scrollY), at: Date.now() };
+  },
+
+  // Powrót do zapisanego miejsca: najpierw po akapicie, gdy go nie ma (hasło zmienione) — po pikselach.
+  restore(spot) {
+    const u = this.m?.units.find((x) => x.hash === spot.h);
+    if (u) this.jumpTo(u.el, spot.dy, false);
+    else window.scrollTo(0, spot.y || 0);
   },
 
   tick() {
@@ -1475,6 +2044,8 @@ const meter = {
     const m = this.m;
     if (!m) return;
     clearTimeout(this.saveTimer);
+    // Miejsce zapisujemy dopiero, gdy hasło już stoi tam, gdzie miało się otworzyć (nie od razu po wczytaniu).
+    if (performance.now() - m.t0 > 1500) { const s = this.spotNow(); if (s) m.rec.spot = s; else delete m.rec.spot; }
     m.rec.at = Date.now();
     m.dirty = false;
     m.savedAt = Date.now();
@@ -1756,14 +2327,18 @@ $('#note').addEventListener('click', (e) => {
 });
 
 /* ——— routing: adres #/wiki/Tytuł otwiera artykuł; przycisk „wstecz” działa naturalnie ——— */
+// Miejsce w haśle przywracamy sami (meter.restore); przeglądarka nie przewija przy „wstecz”.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 function route() {
-  const m = location.hash.match(/^#\/wiki\/(.+)$/);
+  const m = location.hash.match(/^#\/(?:(pl)\/)?wiki\/(.+)$/);
   meter.stop();
   toggleMap(false);
   closePeek();
+  closeSelBar();
   $('#suggestions').hidden = true;
   hideFloat();
-  if (m) { toggleSearch(false); openArticle(decodeTitle(m[1])); }
+  if (m) { toggleSearch(false); openArticle(keyFor(m[1] || WIKI_LANG, decodeTitle(m[2]))); }
+  else if (location.hash === '#/zakreslenia') renderHighlights();
   else renderHome();
 }
 // Start: najpierw dane z bazy, potem pierwszy widok.
@@ -1774,6 +2349,7 @@ store.ready.then(() => {
   state.reader = { ...READER_DEFAULT, ...store.get('reader', {}) };
   state.presets = store.get('presets', []);
   state.reads = new Map(store.get('reads', []).filter((r) => r?.title).map((r) => [r.title, r]));
+  state.highlights = store.get('highlights', []).filter((h) => h?.id && h.title).sort((a, b) => a.at - b.at);
   state.trails = loadTrails();
   applyReader();
   window.addEventListener('hashchange', route);

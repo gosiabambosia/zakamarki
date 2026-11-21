@@ -18,7 +18,7 @@ Czytanie to rosnący podgraf Wikipedii z trzema strefami: **przeczytane**, **kra
 - **Pochodne:** *ukryty klejnot* = jakość ÷ popularność; *heterogeniczność* = odsetek linków wychodzących do innych tematów niż temat hasła; *rozgałęzialność* = liczba linków do obszernych haseł.
 - **Z Wikidata (jako filtry):** epoka, miejsce, rodzaj hasła (osoba, ruch, dzieło, obiekt, miejsce, zdarzenie, organizacja).
 - **Clickstream (późna faza, opcjonalnie):** comiesięczne zrzuty rzeczywistych przejść między hasłami; wielogigabajtowe, przetwarzane raz offline.
-- **Jej ślad:** stany czytania mierzone automatycznie (akapity na ekranie): *otwarte / przejrzane / doczytane*; ręcznie tylko *Na później* i zakreślenia. Wizyty z czasem aktywnego czytania i liczbą nowo przeczytanych akapitów (pod statystyki). Tropy z odgałęzieniami i skokami z wyszukiwarki (archiwum tropów od 2026-11-18).
+- **Jej ślad:** stany czytania mierzone automatycznie (akapity na ekranie): *otwarte / przejrzane / doczytane*; ręcznie tylko *Na później* i zakreślenia (od 3b: 5 kolorów, linki w zaznaczeniu jako hasła docelowe). Wizyty z czasem aktywnego czytania i liczbą nowo przeczytanych akapitów (pod statystyki). Tropy z odgałęzieniami i skokami z wyszukiwarki (archiwum tropów od 2026-11-18).
 
 ## Atlas (inspiracja: Film Atlas z Toolboxd)
 
@@ -35,12 +35,13 @@ Mapa jej podgrafu (przeczytane + krawędź), rozłożona według sieci linków, 
    4. ✅ Linki według stanu (L2: pusty / pełny krążek, przekierowania przez `generator=links`), mapa tropu jak linia metra (arkusz z czytnika) i kreska tropu w karcie Tropy.
    5. ✅ Karta hasła pod przytrzymaniem linku: mała, bez przyciemniania — opis, dwa zdania wstępu, słowa i czas czytania, stan, „Linkują tu” z przeczytanych, Otwórz / Na później.
    - Ekran startowy: **trzy półki z nazwami** — *Czytam* (okładki napełnione szkłem do poziomu akapitów, na desce), *Na później* (ręcznie; musztardowa tafla plexi), *Przeczytane* (liliowa tafla); stuknięcie rozwija siatkę. Hasło z Na później przechodzi dalej, gdy zaczniesz czytać. Tylko otwarte nie trafiają na półki.
-3b. **Zakreślenia i polski** (mini-etap między 3 a 4, decyzja 2026-11-18) — następny. Makieta `.drafts/zakreslenia.html`; otwarte decyzje: pasek zaznaczenia (rek. na dole), wygląd zakreślenia (rek. marker), miejsce ekranu (rek. pływający dolny pasek, na nim później Węzły i Statystyki), frazy (rek. przycisk „Tłumacz frazę” → Tłumacz Google). Szczegóły i plan kodu: handoff 007.
-   - Zakreślenia w osobnym magazynie `highlights` (tekst, hasło, trop, linki w zaznaczeniu, kolor, czas). Grupowanie w trzech warstwach: **automatycznie po haśle i tropie** (ekran „Zakreślenia” po tropach), **automatycznie po wspólnych linkach** (zakreślenia z różnych haseł wskazujące na to samo hasło → kandydaci na Węzły), **ręcznie kolorem zakreślacza** (4–5 kolorów palety, jedno stuknięcie, bez słów). Bez tagów i kolekcji wpisywanych słowami.
-   - **Chip „PL”** w czytniku (langlinks → polska wersja hasła otwierana w tym samym czytniku; język Wikipedii jako parametr, nie stała).
-   - **Dymek ze słownika**: zaznaczone pojedyncze słowo → polskie znaczenia z pl.wiktionary (sekcja `{{język angielski}}` → `{{znaczenia}}`), w dymku jak przypis.
-   - Odrzucone: Translator API w Chrome (brak na Androidzie), MinT (API tylko dla produktów Wikimedia), zewnętrzne tłumacze z kluczami. Systemowego „Tłumacz” w menu zaznaczenia w PWA nie ma (test 2026-11-18).
-4. **Trop i Węzły** — z widocznym uzasadnieniem i wagami ustawianymi przez nią.
+3b. **Zakreślenia i polski** — ✅ (2026-11-21, `zakamarki-v13`, baza v3, kopia v3). Szczegóły: handoff 008.
+   - Zakreślenia w magazynie `highlights` (zakotwiczenie tekstem: fragment + 32 znaki przed i po), pasek zaznaczenia na dole (Z1), marker K2 w palecie **Lampy** (morska zieleń, niebieski, morela, wrzos, cytryna), stuknięcie w zakreślenie = zmiana koloru / usunięcie.
+   - Jedno angielskie słowo → polskie znaczenia z **pl.wiktionary** (formy odmienione sprowadzane do hasła); fraza → przycisk **Tłumacz** (Google, zapas MyMemory; po wyczerpaniu obu link do Tłumacza Google).
+   - **Chip PL** (langlinks w zapytaniu `parse`): polskie hasła w tym samym czytniku, klucz `pl:Tytuł`, trasa `#/pl/wiki/…`.
+   - Ekran **Zakreślenia** w dolnym pasku (C1, znak: cudzysłów): wielka liczba, filtr kolorem, grupy po tropach (rodzinach), „Prowadzą do tego samego” (cel linków z zakreśleń w ≥ 2 hasłach — kandydaci na Węzły).
+   - Przy okazji: powrót do miejsca w haśle, wyjustowany tekst i zdjęcia na szerokość kolumny, mapa tropu jako drzewo (M4), lista Tropy po rodzinach z dniem zamiast 0.1 (N2).
+4. **Trop i Węzły** — następny. Z widocznym uzasadnieniem i wagami ustawianymi przez nią; sygnały: przeczytane, zakreślenia (wspólne cele linków), rodziny tropów.
 5. **Statystyki i Atlas** — czas i słowa, głębokość, najdłuższe tropy, najgęstsze węzły, rozkład epok, miejsc i rodzajów haseł, niszowość w czasie, kalendarz aktywności, wzrost mapy.
 6. **Przejścia, Osobliwości, Parametry.**
 7. **Myślnia** — szablon notatki do Obsidiana z przeczytanego hasła; ewentualnie synchronizacja między urządzeniami (np. prywatny GitHub Gist).
