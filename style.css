@@ -315,7 +315,8 @@ main { padding: 6px var(--gutter) 48px; }
 .numbered li { border-bottom: 1px solid var(--rule); }
 .numbered li:last-child { border-bottom: 0; }
 .numbered a { display: flex; align-items: center; gap: 12px; padding: 11px 0; text-decoration: none; color: var(--fg); }
-.numbered .n { width: 52px; flex: none; font-size: .76rem; font-weight: 600; color: var(--fg); line-height: 1.1; }
+/* Dzień tropu: kolor podpisu, odrobinę ciemniejszy i pogrubiony — odróżnia się od trasy, nie krzyczy */
+.numbered .n, .hl-day { width: 52px; flex: none; font-size: .76rem; font-weight: 700; line-height: 1.1; color: color-mix(in srgb, var(--muted) 78%, var(--fg)); }
 .numbered .t { flex: 1; min-width: 0; font-size: 1.02rem; font-weight: 500; }
 .numbered .route { display: block; overflow-wrap: anywhere; }
 .numbered .go {
@@ -736,7 +737,6 @@ html[data-view="home"] main, html[data-view="highlights"] main { padding-bottom:
 .hf[aria-pressed="true"] { box-shadow: 0 0 0 2.5px var(--bg), 0 0 0 4.5px var(--fg); }
 #hl-groups > .empty { color: var(--muted); margin: 24px 0 0; }
 .hl-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
-.hl-day { flex: none; width: 52px; font-size: .76rem; font-weight: 600; }
 .hl-route { min-width: 0; font-weight: 600; font-size: 1rem; overflow-wrap: anywhere; }
 .hl-item { display: block; padding: 10px 0 10px 64px; border-top: 1px solid var(--rule); color: var(--fg); text-decoration: none; }
 .hl-head + .hl-item { border-top: 0; }
