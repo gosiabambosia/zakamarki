@@ -26,6 +26,9 @@ Mapa jej podgrafu (przeczytane + krawędź), rozłożona według sieci linków, 
 
 ## Etapy
 
+Kolejność od 2026-11-22: 1–4 ✅ → **8 (paleta i nazwa)** → 5 → 6 → 7.
+
+
 1. **Szkielet i hosting** — ✅ wyszukiwarka, czytnik, zapis tropu i historii, przypinanie, PWA.
 2. **Czytnik i typografia** — ✅ panel ustawień: tło, krój, kolor i wielkość czcionki, interlinia, szerokość kolumny, zapisywane presety; 2–3 kierunki wizualne do wyboru; przypisy jako dymki; zwijany infobox.
 3. **Ślad** — ✅ (2026-11-18, `zakamarki-v12`).
@@ -52,7 +55,7 @@ Mapa jej podgrafu (przeczytane + krawędź), rozłożona według sieci linków, 
    - Z etapu 4: forma „wiersze zbiegające się w liczbie” jako wzór dla najgęstszych węzłów; filtr ogólników w Węzłach (kraje, miasta, wojny) po rodzaju hasła z 5c.
 6. **Przejścia, Osobliwości, Parametry.** Przed startem sprawdzić CORS Lift Wing (niżej).
 7. **Myślnia** — szablon notatki do Obsidiana z przeczytanego hasła; ewentualnie synchronizacja między urządzeniami (np. prywatny GitHub Gist).
-8. **Korekta wyglądu: paleta i nazwa** — na koniec projektu (jej decyzja 2026-11-22), gdy wszystkie ekrany już istnieją. Szczegóły i jej sygnały: handoffy 010 i 011, `docs/STYL.md`.
+8. **Korekta wyglądu: paleta i nazwa** — **następny etap, przed 5** (zmiana jej decyzji 2026-11-22 wieczorem: obecne kolory ją irytują; wcześniej: na koniec projektu). Handoff 013. Szczegóły i jej sygnały: handoffy 010 i 011, `docs/STYL.md`.
    - **Paleta barw, kolor po kolorze — wybiera sama.** Forma: strona-próbnik — klik w pojedynczy kolor (z jej palet Procreate: `Amelie_color_palette.ase.swatches`, `studio_ghibli.swatches`, `Wes_Anderson.swatches`; zip z `Swatches.json`) → prawdziwa aplikacja w ramce przyjmuje go na żywo w wybranej roli. **Bez gotowych zestawów i rund wariantów** (przebodźcowywały).
    - Role do obsadzenia: tło i karty (jej sygnał: `#F8F4EC`, `#FFFCF5`), okładki bez zdjęcia (dziś tymczasowe Szkliwo `--cover-1…5`; kierunek: złoto `#E5C267`, przydymiony róż `#DDA9B8`, szara oliwka `#66664C`, jakiś fiolet; pastele „mdłe”), akcenty `--pop-*`, liczby (kobalt), wersja nocna. Zostają: róż kropek tropów `#d98aa3`, jednolite półprzezroczyste tafle półek (podobają się), zasada warstw „dolna jasna, wierzchnia pełna”.
    - Do pilnowania: zakreślacze „Lampy” nie mogą powtarzać akcentów; tafla Na później neutralna przy złotych okładkach; `#FFFCF5` w czytniku z tekstem ok. `#3A3530` (≈ 11,8:1 — jej zakres 10–13); kolor okładki ewentualnie jako pomiar (rodzaj hasła z Wikidata, etap 5c).
