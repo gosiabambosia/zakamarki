@@ -741,10 +741,10 @@ a.sb-src, .sb-ext { display: inline-block; margin-top: 4px; color: var(--muted);
   background: color-mix(in srgb, var(--surface) 90%, transparent);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgb(0 0 0 / .18);
 }
-html:not([data-view="home"]):not([data-view="highlights"]) .dock { display: none; }
+html:not([data-view="home"]):not([data-view="highlights"]):not([data-view="nodes"]) .dock { display: none; }
 .dock a { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; color: var(--fg); }
-html[data-view="home"] .dock [data-v="home"], html[data-view="highlights"] .dock [data-v="highlights"] { background: var(--pop-ink); color: var(--on-pop); }
-html[data-view="home"] main, html[data-view="highlights"] main { padding-bottom: 110px; }
+html[data-view="home"] .dock [data-v="home"], html[data-view="highlights"] .dock [data-v="highlights"], html[data-view="nodes"] .dock [data-v="nodes"] { background: var(--pop-ink); color: var(--on-pop); }
+html[data-view="home"] main, html[data-view="highlights"] main, html[data-view="nodes"] main { padding-bottom: 110px; }
 
 /* ——— ekran Zakreślenia ——— */
 .hl-filter { display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
@@ -772,3 +772,38 @@ html[data-view="home"] main, html[data-view="highlights"] main { padding-bottom:
 .hc-s { display: block; font-size: .8rem; color: var(--muted); margin-top: 2px; }
 /* kółka kolorów (pasek zaznaczenia, filtr): ten sam kolor co zakreślenie */
 .hc.c1, .hf.c1 { --c: var(--hl-1); } .hc.c2, .hf.c2 { --c: var(--hl-2); } .hc.c3, .hf.c3 { --c: var(--hl-3); } .hc.c4, .hf.c4 { --c: var(--hl-4); } .hc.c5, .hf.c5 { --c: var(--hl-5); }
+
+/* ——— Trop i Węzły (etap 4) ———
+   Lista (N1): okładka, tytuł, jedna nazwa w linijce (dzień + hasło, „+k” = ile jeszcze), wielka kobaltowa liczba.
+   Stuknięcie otwiera arkusz z rysunkiem: wiersze zbiegają się liniami w kółku z liczbą — wszystkie linie
+   tej samej grubości, bez grotów, tekst zawsze poziomo (czytelne także przy wielu hasłach). */
+.trop-next { margin-top: 40px; }
+.trop-next .sec-head { margin-top: 0; }
+.rec-card { padding: 4px 16px; }
+.trop-next .rec-card { margin-top: 0; }
+.rec-row { display: flex; gap: 12px; align-items: center; width: 100%; padding: 12px 0; border: 0; background: none; color: var(--fg); text-align: left; font: inherit; cursor: pointer; }
+.rec-row + .rec-row { border-top: 1px solid var(--rule); }
+.rec-row .r-cover { width: 48px; height: 64px; border-radius: 7px; flex: none; align-self: flex-start; }
+.rec-row .r-cover i { font-size: 1.4rem; }
+.rec-mid { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.rec-t { font-size: .98rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.15; margin-bottom: 2px; }
+.rec-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: .8rem; color: var(--muted); }
+.rec-day { flex: none; width: 44px; font-size: .72rem; }
+.rec-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-more { flex: none; font-size: .72rem; }
+.rec-big { flex: none; min-width: 34px; text-align: right; font-size: 2.2rem; font-weight: 600; letter-spacing: -.04em; color: var(--pop-cobalt); line-height: 1; font-variant-numeric: tabular-nums; }
+.nodes-status { margin: 14px 0 0; font-size: .85rem; color: var(--muted); }
+.sheet.why { max-height: 80vh; max-height: 80dvh; }
+.why h3 { margin: 4px 0 2px; font-size: 1.25rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+.why-s { margin: 0 0 10px; font-size: .82rem; color: var(--muted); }
+.why-svg { display: block; width: 100%; height: auto; overflow: visible; font-family: var(--font-ui); }
+.why-svg .lb { font-size: 13px; font-weight: 600; fill: var(--fg); }
+.why-svg .lb.off { fill: var(--muted); font-weight: 400; }
+.why-svg .day, .why-svg .dayt { font-size: 11.5px; font-weight: 400; fill: var(--muted); }
+.why-svg .sp { fill: none; stroke: var(--fg); stroke-width: 1.6; }
+.why-svg .sp.ghost { stroke: var(--muted); stroke-dasharray: 3 3; }
+.why-svg .thread { stroke: var(--rule); stroke-width: 3; }
+.why-svg .bead { fill: var(--surface); stroke: var(--muted); stroke-width: 1.5; }
+.why-svg .bead.on { fill: var(--fg); stroke: var(--fg); }
+.why-svg .hub { fill: var(--surface); stroke: var(--pop-cobalt); stroke-width: 2.5; }
+.why-svg .hubn { font-size: 22px; font-weight: 600; fill: var(--pop-cobalt); letter-spacing: -.04em; }

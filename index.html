@@ -101,6 +101,16 @@
       </div>
     </section>
 
+    <!-- Węzły (etap 4): nieprzeczytane hasła, do których prowadzą przeczytane z ≥ 3 różnych tropów. -->
+    <section id="view-nodes" class="view" hidden>
+      <div class="hero-num">
+        <div id="nodes-num" class="hero-big"></div>
+        <div class="hero-unit"><span id="nodes-unit"></span><small id="nodes-sub"></small></div>
+      </div>
+      <p id="nodes-status" class="nodes-status" role="status" hidden></p>
+      <div id="nodes-list" class="card rec-card" hidden></div>
+    </section>
+
     <section id="view-results" class="view" hidden>
       <h2 class="label" id="results-label">Wyniki</h2>
       <ul id="results-list" class="list"></ul>
@@ -124,6 +134,11 @@
       </div>
       <p id="status" class="status" hidden></p>
       <article id="article" class="article" lang="en"></article>
+      <!-- Trop (etap 4): dalej tym tropem — liczone, gdy zbliżasz się do końca hasła. -->
+      <section id="trop-next" class="trop-next" hidden>
+        <div class="sec-head"><h2>Dalej tym tropem</h2><span id="trop-count" class="sec-count"></span></div>
+        <div id="trop-list" class="card rec-card"></div>
+      </section>
       <footer id="attribution" class="attribution"></footer>
     </section>
   </main>
@@ -199,6 +214,18 @@
     </div>
   </section>
 
+  <!-- Uzasadnienie rekomendacji: wiersze (kroki tropu albo tropy) zbiegają się liniami w kółku z liczbą. -->
+  <div id="why-catcher" class="sheet-catcher" hidden></div>
+  <section id="why" class="sheet why" role="dialog" aria-label="Uzasadnienie" hidden>
+    <div class="sheet-inner">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <h3 id="why-t"></h3>
+      <p id="why-s" class="why-s"></p>
+      <div id="why-body"></div>
+      <div class="peek-btns"><a id="why-go" class="pill-ink" href="#">Otwórz</a></div>
+    </div>
+  </section>
+
   <!-- Pasek zaznaczenia (Z1): kolory zakreślacza, słownik dla słowa, tłumacz dla frazy. -->
   <div id="selbar" class="selbar" role="toolbar" aria-label="Zakreślenie" hidden>
     <div class="sb-row">
@@ -215,13 +242,16 @@
     <div id="sb-more" class="sb-more" hidden></div>
   </div>
 
-  <!-- Dolny pasek ekranów (C1): tylko poza czytnikiem. Kolejne kółka: Węzły, Statystyki. -->
+  <!-- Dolny pasek ekranów (C1): tylko poza czytnikiem. Kolejne kółko: Statystyki. -->
   <nav id="dock" class="dock" aria-label="Ekrany">
     <a href="#" data-v="home" aria-label="Biblioteka">
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 4.5h3.5v15H4zM9.5 4.5H13v15H9.5zM15.2 5.6l3.3-.9 3 14.4-3.3.9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
     </a>
     <a href="#/zakreslenia" data-v="highlights" aria-label="Zakreślenia">
       <svg viewBox="2 3.8 19.5 16" width="26" height="26" aria-hidden="true"><path d="M3 15.2a4.1 4.1 0 1 0 8.2 0a4.1 4.1 0 0 0-3.4-4.04C8.3 9 9.5 7.4 11.2 6.3L10.1 4.7C6 6.5 3 10.2 3 15.2Z" fill="currentColor"/><path transform="translate(9.2 0)" d="M3 15.2a4.1 4.1 0 1 0 8.2 0a4.1 4.1 0 0 0-3.4-4.04C8.3 9 9.5 7.4 11.2 6.3L10.1 4.7C6 6.5 3 10.2 3 15.2Z" fill="currentColor"/></svg>
+    </a>
+    <a href="#/wezly" data-v="nodes" aria-label="Węzły">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12.5" r="4.2" fill="currentColor"/><circle cx="4.5" cy="6" r="2.3" fill="currentColor"/><circle cx="19.5" cy="6" r="2.3" fill="currentColor"/><circle cx="12" cy="21" r="2.3" fill="currentColor"/></svg>
     </a>
   </nav>
 

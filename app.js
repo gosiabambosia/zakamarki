@@ -54,7 +54,7 @@ function lsAll() {
    a istniejące magazyny (i dane w nich) zostają nietknięte.
    v1: kv + history. v2: reads (stan czytania każdego hasła, etap 3.3).
    v3: highlights (zakreślenia, etap 3b) — klucz id, indeksy po haśle i czasie. */
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -72,6 +72,8 @@ function openDB() {
         h.createIndex('title', 'title');
         h.createIndex('at', 'at');
       }
+      // v4 (etap 4): linki wychodzące haseł — pamięć podręczna do Tropu i Węzłów, poza kopią zapasową.
+      if (e.oldVersion < 4) db.createObjectStore('links', { keyPath: 'title' });
     };
     // Starsza wersja aplikacji otwarta w innej karcie trzyma bazę i blokuje aktualizację.
     req.onblocked = () => {
@@ -160,7 +162,11 @@ const store = {
   deleteHighlight(id) {
     if (!this.db) { lsSet('highlights', state.highlights); return; }
     tx('highlights', 'readwrite', (h) => { h.delete(id); }).catch(() => {});
-  }
+  },
+  // Linki wychodzące (etap 4): czytane dopiero przy pierwszym liczeniu Tropu albo Węzłów, nie przy starcie.
+  // Bez IndexedDB żyją tylko do końca sesji (da się je zawsze pobrać jeszcze raz).
+  allLinks() { return this.db ? tx('links', 'readonly', (l) => l.getAll()).catch(() => []) : Promise.resolve([]); },
+  putLinks(rec) { if (this.db) tx('links', 'readwrite', (l) => { l.put(rec); }).catch(() => {}); }
 };
 
 async function migrateFromLocalStorage() {
@@ -303,7 +309,7 @@ const lastOpened = (title) => { for (let i = state.history.length - 1; i >= 0; i
 
 /* ——— widoki ——— */
 function show(view) {
-  for (const v of ['home', 'results', 'reader', 'highlights']) $('#view-' + v).hidden = v !== view;
+  for (const v of ['home', 'results', 'reader', 'highlights', 'nodes']) $('#view-' + v).hidden = v !== view;
   document.documentElement.dataset.view = view;   // w czytniku tłem strony jest kartka
 }
 
@@ -488,14 +494,23 @@ function shelfLink(title, cls, resumeRead) {
 // spółgłoskami (samogłoska-spółgłoska | spółgłoska-samogłoska) najbliżej środka słowa, np. „Corres-pondence”.
 // Przeglądarka sama takich słów w wąskiej kolumnie nie dzieli, a cięcie byle gdzie gubi łącznik.
 const VOWEL = /[aeiouyąęó]/i;
-function shy(text) {
+// min = od ilu liter dzielić; loose (tytuł w czytniku) = gdy brak miejsca samogłoska-spółgłoska | spółgłoska-
+// samogłoska, wystarczą dwie spółgłoski przed samogłoską („Letch-worth”), byle obie części miały samogłoskę.
+function shy(text, min = 11, loose = false) {
   return text.split(/([ -])/).map((w) => {
-    if (w.length <= 11) return w;
+    if (w.length <= min) return w;
+    const near = (i, best) => best < 0 || Math.abs(i - w.length / 2) < Math.abs(best - w.length / 2);
     let best = -1;
     for (let i = 4; i <= w.length - 4; i++) {
-      if (VOWEL.test(w[i - 2]) && !VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1])) {
-        if (best < 0 || Math.abs(i - w.length / 2) < Math.abs(best - w.length / 2)) best = i;
+      if (VOWEL.test(w[i - 2]) && !VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1]) && near(i, best)) best = i;
+    }
+    if (best < 0 && loose) {
+      for (let i = 3; i <= w.length - 3; i++) {
+        if (!VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1]) && VOWEL.test(w.slice(0, i)) && near(i, best)) best = i;
       }
+      // ostatnia możliwość: przed spółgłoską między samogłoskami („Phenome-nalism”)
+      for (let i = 3; best < 0 && i <= w.length - 3; i++) if (VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1])) best = i;
+      for (let i = best + 1; best > 0 && i <= w.length - 3; i++) if (VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1]) && near(i, best)) best = i;
     }
     return best < 0 ? w : w.slice(0, best) + '\u00ad' + w.slice(best);
   }).join('');
@@ -784,7 +799,7 @@ $('#hero-search').addEventListener('click', () => toggleSearch(true));
    zastępuje: wczytanie starej kopii nie skasuje nowszej historii. */
 // v1: history, trails, saved, reader, presets. v2: + reads (stan czytania haseł).
 // v3: + highlights (zakreślenia). Import przyjmuje v1–v3.
-const BACKUP_VERSION = 3;
+const BACKUP_VERSION = 4;              // v4 = te same dane co v3 (magazyn links nie trafia do kopii)
 
 function backupSummary(d) {
   const n = (x) => (Array.isArray(x) ? x.length : 0);
@@ -1155,6 +1170,377 @@ function paintLinks(map) {
   }
 }
 
+/* ——— Trop i Węzły (etap 4) ———
+   Indeks odwrotny: dla każdego przeczytanego hasła pamiętamy, dokąd linkuje, i odwracamy to
+   na „kto linkuje tutaj”.
+   – Trop: linki ostatniego hasła tropu. Każdy dostaje punkt za każdy wcześniejszy krok, który też
+     tam linkuje, i za każdy krok, do którego sam linkuje — wątek się nie rozmywa.
+   – Węzły: nieprzeczytane hasła, do których linkują przeczytane z kilku różnych rodzin tropów.
+   Pamięć linków: magazyn `links` {title, out, src, at}. Zawsze tylko linki z samej treści — navboxy
+   (tabelki szablonów na dole hasła) linkują do dziesiątek haseł z tej samej dziedziny i zalewały Węzły
+   hasłami, do których żaden tekst nie prowadzi. src 'body' = z czytnika (akapity, które liczy pomiar),
+   po przekierowaniach; src 'wt' = z wikitekstu (źródła hasła), bez szablonów, przypisów i sekcji
+   „See also”, „References”… — dla haseł spoza czytnika; przekierowania wyrównuje resolveTitles(). */
+const JUNK = /\((identifier|disambiguation)\)$|^(ISBN|ISSN|Digital object identifier|PubMed|PubMed Central|Bibcode|JSTOR|OCLC|Wayback Machine|Geographic coordinate system|Semantic Scholar|Library of Congress Control Number)$|^\d{1,4}( BC| AD)?$|^\d{1,4}s( BC)?$|^(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}$/;
+const isJunk = (k) => JUNK.test(bareTitle(k));
+const isRead = (k) => { const st = state.reads.get(k)?.state; return st === 'seen' || st === 'done'; };
+
+const links = {
+  mem: new Map(),                        // hasło → {title, out, src, at}
+  pending: new Map(),                    // hasło otwarte w czytniku → obietnica zapisu linków z treści
+  sets: new Map(),                       // hasło → Set(out), budowane leniwie
+  loaded: null,
+  load() {
+    return (this.loaded ||= store.allLinks().then((all) => {
+      for (const r of all) if (r?.title && r.src !== 'api' && !this.mem.has(r.title)) this.mem.set(r.title, r);   // 'api' = próba z navboxami (odrzucona)
+    }));
+  },
+  save(title, out, src) {
+    const rec = { title, out: [...new Set(out)].filter((t) => t !== title && !isJunk(t)), src, at: Date.now() };
+    this.mem.set(title, rec);
+    this.sets.delete(title);
+    store.putLinks(rec);
+    return rec;
+  },
+  set(title) {
+    const r = this.mem.get(title);
+    if (!r) return null;
+    if (!this.sets.has(title)) this.sets.set(title, new Set(r.out));
+    return this.sets.get(title);
+  },
+  // Linki hasła: z pamięci albo z wikitekstu.
+  async of(title) {
+    await this.load();
+    await this.pending.get(title);
+    if (!this.mem.has(title)) await fetchWikiLinks([title]);
+    return this.set(title);
+  }
+};
+
+// Linki z wikitekstu: ucięte na pierwszej sekcji z listy STOP_SECTIONS, bez komentarzy, przypisów
+// i szablonów {{…}} (infoboksy, navboxy, cytowania); zostają [[linki]] z tekstu i podpisów zdjęć.
+function wikiLinks(wt, lang) {
+  let t = wt;
+  const stop = t.search(new RegExp('^==\\s*(' + STOP_SECTIONS.source.slice(2, -2) + ')\\s*==', 'im'));
+  if (stop > 0) t = t.slice(0, stop);
+  t = t.replace(/<!--[\s\S]*?-->/g, '').replace(/<ref[^>]*\/>/gi, '').replace(/<ref[\s\S]*?<\/ref>/gi, '');
+  for (let i = 0; i < 8 && t.includes('{{'); i++) t = t.replace(/\{\{[^{}]*\}\}/g, '');
+  const out = [];
+  for (const m of t.matchAll(/\[\[([^\[\]|#]+)(?:#[^\[\]|]*)?(?:\|[^\[\]]*)?\]\]/g)) {
+    const name = m[1].replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!name || name.startsWith(':') || NON_ARTICLE.test(name) || /^[a-z][a-z-]*:/.test(name)) continue;
+    out.push(normTitle(keyFor(lang, name)));
+  }
+  return out;
+}
+
+// Wikitekst kilku haseł naraz (po 10: hasła bywają długie), linki do pamięci.
+async function fetchWikiLinks(titles) {
+  for (const lang of new Set(titles.map(langOf))) {
+    const mine = titles.filter((t) => langOf(t) === lang);
+    for (let i = 0; i < mine.length; i += 10) {
+      const part = mine.slice(i, i + 10);
+      const data = await api({ action: 'query', prop: 'revisions', rvprop: 'content', rvslots: 'main', redirects: '1', titles: part.map(bareTitle).join('|') }, lang);
+      const alias = {};
+      for (const m of [...(data.query?.normalized || []), ...(data.query?.redirects || [])]) alias[m.to] = m.from;
+      for (const pg of data.query?.pages || []) {
+        const wt = pg.revisions?.[0]?.slots?.main?.content;
+        if (typeof wt !== 'string') continue;
+        let key = keyFor(lang, pg.title);
+        if (!part.includes(key)) { let f = pg.title; while (alias[f]) f = alias[f]; key = keyFor(lang, f); }
+        links.save(key, wikiLinks(wt, lang), 'wt');
+      }
+    }
+  }
+}
+
+// Przekierowania: tytuł z linku → tytuł hasła (po 50 w jednym zapytaniu, wynik do końca sesji).
+const aliasOf = new Map();
+const canon = (k) => aliasOf.get(k) || k;
+async function resolveTitles(keys) {
+  const todo = [...new Set(keys)].filter((k) => !aliasOf.has(k));
+  for (const lang of new Set(todo.map(langOf))) {
+    const mine = todo.filter((t) => langOf(t) === lang);
+    for (let i = 0; i < mine.length; i += 50) {
+      const part = mine.slice(i, i + 50);
+      const data = await api({ action: 'query', titles: part.map(bareTitle).join('|'), redirects: '1' }, lang);
+      const step = {};
+      for (const m of [...(data.query?.normalized || []), ...(data.query?.redirects || [])]) step[m.from] = m.to;
+      for (const k of part) {
+        let t = bareTitle(k);
+        for (let n = 0; n < 4 && step[t]; n++) t = step[t];
+        aliasOf.set(k, keyFor(lang, t));
+      }
+    }
+  }
+}
+
+// Po otwarciu hasła: linki z samej treści, po przekierowaniach.
+function recordBodyLinks(title, map) {
+  const out = [];
+  for (const { el } of measureUnits($('#article'))) {
+    for (const a of el.querySelectorAll('a.wl')) { const n = normTitle(a.dataset.title); out.push(map?.get(n) || n); }
+  }
+  return out.length ? links.load().then(() => { links.save(title, out, 'body'); }) : Promise.resolve();
+}
+
+// Rodzina tropu = trop razem z odgałęzieniami (korzeń łańcucha branchOf). Hasło należy do rodziny,
+// w której pojawiło się najwcześniej — jedno hasło nie liczy się za kilka niezależnych tropów.
+function familyOf() {
+  const byId = new Map(state.trails.map((t) => [t.id, t]));
+  const root = (t) => { const seen = new Set(); while (t.branchOf && byId.has(t.branchOf) && !seen.has(t.id)) { seen.add(t.id); t = byId.get(t.branchOf); } return t; };
+  const fam = new Map();
+  for (const T of [...state.trails].sort((a, b) => a.start - b.start)) {
+    const r = root(T);
+    for (const s of T.steps) if (!fam.has(s.t)) fam.set(s.t, r);
+  }
+  return fam;
+}
+
+// Przeczytane hasła, których linków jeszcze nie znamy: po jednym zapytaniu, najnowsze najpierw.
+const BACKFILL_MAX = 300;
+async function backfillLinks(onProgress) {
+  await links.load();
+  const todo = [...state.reads.values()].filter((r) => isRead(r.title) && !links.mem.has(r.title))
+    .sort((a, b) => b.at - a.at).slice(0, BACKFILL_MAX);
+  for (let i = 0; i < todo.length; i += 10) {
+    onProgress?.(i, todo.length);
+    try { await fetchWikiLinks(todo.slice(i, i + 10).map((r) => r.title)); }
+    catch { break; }                     // bez internetu: dokończy się następnym razem
+  }
+  onProgress?.(todo.length, todo.length);
+  return todo.length;
+}
+
+// Wagi rekomendacji (decyzja 3 — na razie domyślne).
+// Trop: tropPath = za każdy wcześniejszy krok, który tu linkuje; tropBack = za każdy wcześniejszy krok,
+// do którego kandydat linkuje; tropLast = za link z powrotem do ostatniego hasła (sygnał lokalny —
+// sam w sobie wyciągał wioski wokół Letchworth). Węzły: za każdą rodzinę tropów i każde zakreślenie.
+// nodeMin: próg 3 tropy na stałe (jej decyzja 2026-11-22: bez ustawień; przy 2 wychodziło ponad sto węzłów).
+const REC_W = { tropPath: 1, tropBack: 1, tropLast: 0.5, nodeFamilies: 1, nodeHighlights: 1, nodeMin: 3 };
+
+// Węzły: {t, fams: [{root, titles}], n (przeczytanych linkujących), hl (zakreśleń z linkiem), score}.
+// Najpierw liczenie na tytułach z linków; cele z ≥ 2 haseł wyrównujemy do tytułów haseł (przekierowania)
+// i liczymy jeszcze raz — warianty tego samego hasła się sumują, a przeczytane pod inną nazwą odpadają.
+async function computeNodes() {
+  const fam = familyOf();
+  const sources = [...state.reads.values()].filter((r) => isRead(r.title) && links.mem.has(r.title));
+  const count = new Map();
+  for (const r of sources) for (const t of links.mem.get(r.title).out) count.set(t, (count.get(t) || 0) + 1);
+  try { await resolveTitles([...count].filter(([t, n]) => n >= 2 && !isRead(t)).map(([t]) => t).slice(0, 600)); } catch { /* bez internetu: bez wyrównania */ }
+  const agg = new Map();
+  for (const r of sources) {
+    const root = fam.get(r.title) || null;
+    const fid = root ? root.id : 'solo:' + r.title;
+    for (const t0 of new Set(links.mem.get(r.title).out.map(canon))) {
+      if (isRead(t0) || t0 === r.title) continue;
+      if (!agg.has(t0)) agg.set(t0, { t: t0, src: new Map(), hl: 0 });
+      const x = agg.get(t0);
+      if (!x.src.has(fid)) x.src.set(fid, { root, titles: [] });
+      x.src.get(fid).titles.push(r.title);
+    }
+  }
+  for (const h of state.highlights) for (const t of new Set((h.links || []).map(canon))) if (agg.has(t)) agg.get(t).hl++;
+  const W = REC_W;
+  return [...agg.values()]
+    .map((x) => {
+      const fams = [...x.src.values()].sort((a, b) => b.titles.length - a.titles.length);
+      const n = fams.reduce((s, f) => s + f.titles.length, 0);
+      return { t: x.t, fams, n, hl: x.hl, score: W.nodeFamilies * fams.length + W.nodeHighlights * x.hl };
+    })
+    .filter((x) => x.fams.length >= W.nodeMin)
+    .sort((a, b) => b.score - a.score || b.fams.length - a.fams.length || b.n - a.n);
+}
+
+// Trop: {path, items: [{t, from: [wcześniejsze kroki, które tu linkują], to: [kroki, do których linkuje], score}]}.
+const tropCache = new Map();
+async function computeTrop(T) {
+  const all = [...new Set(T.steps.slice(0, T.pos + 1).map((s) => s.t))];
+  const last = all[all.length - 1];
+  const lang = langOf(last);
+  const path = all.filter((t) => langOf(t) === lang).slice(-50);
+  const key = path.join('|');
+  if (tropCache.has(key)) return tropCache.get(key);
+  const outLast = await links.of(last);
+  if (!outLast) return { path, items: [] };
+  const earlier = path.slice(0, -1);
+  for (const t of earlier) await links.of(t);
+  const inPath = new Set(path);
+  const items = [...outLast].filter((c) => !inPath.has(c) && !isRead(c))
+    .map((c, i) => ({ t: c, i, from: earlier.filter((s) => links.set(s)?.has(c)), to: [] }));
+  // Do których kroków tropu linkuje kandydat: prop=links z filtrem pltitles, 50 kandydatów na zapytanie.
+  const byTitle = new Map(items.map((x) => [bareTitle(x.t), x]));
+  const pl = path.map(bareTitle).join('|');
+  try {
+    for (let i = 0; i < items.length; i += 50) {
+      let cont = {};
+      for (let k = 0; k < 5; k++) {
+        const data = await api({ action: 'query', prop: 'links', titles: items.slice(i, i + 50).map((x) => bareTitle(x.t)).join('|'), pltitles: pl, pllimit: 'max', ...cont }, lang);
+        for (const pg of data.query?.pages || []) for (const l of pg.links || []) byTitle.get(pg.title)?.to.push(keyFor(lang, l.title));
+        if (!data.continue) break;
+        cont = data.continue;
+      }
+    }
+  } catch { /* bez internetu liczymy tylko linki z kroków tropu */ }
+  const W = REC_W;
+  for (const x of items) x.score = W.tropPath * x.from.length + W.tropBack * x.to.filter((t) => t !== last).length + W.tropLast * x.to.includes(last);
+  const res = { path, items: items.filter((x) => x.score > 0).sort((a, b) => b.score - a.score || a.i - b.i) };
+  tropCache.set(key, res);
+  return res;
+}
+
+/* ——— Trop i Węzły: lista i rysunek uzasadnienia ———
+   Lista (N1): okładka, tytuł, jedna nazwa w linijce, wielka liczba. Stuknięcie: arkusz z rysunkiem —
+   wiersze (kroki tropu albo tropy) zbiegają się liniami w kółku z liczbą (forma z renderowni:
+   „zbieżność” i „ciągłość wątku”). Jedna grubość linii, bez grotów; tekst zawsze poziomo. */
+function recLine(day, name, more) {
+  const l = node('span', 'rec-line');
+  if (day != null) l.append(node('span', 'rec-day', day));
+  l.append(node('span', 'rec-name', shownTitle(name)));
+  if (more) l.append(node('span', 'rec-more', '+' + more));
+  return l;
+}
+function recRow(t, i, lines, num, onTap) {
+  const b = node('button', 'rec-row');
+  b.type = 'button';
+  const mid = node('span', 'rec-mid');
+  const tt = node('span', 'rec-t', shownTitle(t));
+  tt.lang = langOf(t);
+  mid.append(tt, ...lines);
+  b.append(coverBox(t, i, 'r-cover'), mid, node('span', 'rec-big', String(num)));
+  b.addEventListener('click', onTap);
+  return b;
+}
+const tropsWord = (n) => plural(n, 'trop', 'tropy', 'tropów');
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  parent?.append(e);
+  return e;
+}
+const cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
+// rows: [{t, day?, more?, on, ghost?, bead?}] — bead = kroki tropu na pionowej nici.
+function whySvg(rows, num) {
+  const W = 340, ROW = 32, LX = 236, HX = 306, Hh = rows.length * ROW + 10, cy = Hh / 2;
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${Hh}`, class: 'why-svg', 'aria-hidden': 'true' });
+  rows.forEach((r, i) => {
+    const y = 5 + i * ROW + ROW / 2;
+    if (r.bead) {
+      if (i < rows.length - 1) svgEl('line', { x1: 7, y1: y, x2: 7, y2: y + ROW, class: 'thread' }, svg);
+      svgEl('circle', { cx: 7, cy: y, r: r.on ? 5.5 : 3.5, class: r.on ? 'bead on' : 'bead' }, svg);
+    }
+    let x = r.bead ? 22 : 0;
+    if (r.day != null) { svgEl('text', { x, y: y + 4, class: 'day' }, svg).textContent = r.day; x += 48; }
+    const t = svgEl('text', { x, y: y + 4, class: r.on && !r.ghost ? 'lb' : 'lb off' }, svg);
+    t.textContent = cut(shownTitle(r.t), (r.day != null ? 20 : 26) - (r.more ? 3 : 0));
+    if (r.more) svgEl('tspan', { class: 'dayt', dx: 5 }, t).textContent = '+' + r.more;
+    if (r.on) svgEl('path', { d: `M${LX} ${y} C ${LX + 40} ${y}, ${HX - 50} ${cy}, ${HX - 22} ${cy}`, class: r.ghost ? 'sp ghost' : 'sp' }, svg);
+  });
+  svgEl('circle', { cx: HX, cy, r: 22, class: 'hub' }, svg);
+  svgEl('text', { x: HX, y: cy + 8, class: 'hubn', 'text-anchor': 'middle' }, svg).textContent = num;
+  return svg;
+}
+function openWhy(t, sub, svg, from) {
+  $('#why-t').textContent = shownTitle(t);
+  $('#why-t').lang = langOf(t);
+  $('#why-s').textContent = sub;
+  $('#why-body').replaceChildren(svg);
+  $('#why-go').href = hrefFor(t);
+  state.whyFrom = from;
+  $('#why').hidden = false;
+  $('#why-catcher').hidden = false;
+}
+function closeWhy() { $('#why').hidden = true; $('#why-catcher').hidden = true; }
+$('#why-catcher').addEventListener('click', closeWhy);
+$('#why-go').addEventListener('click', () => { state.pendingFrom = state.whyFrom || null; closeWhy(); });
+
+// Trop na końcu hasła: liczony dopiero, gdy zbliżasz się do stopki (zapytania tylko wtedy, gdy potrzebne).
+let tropObs = null;
+function watchTrop(title, token) {
+  $('#trop-next').hidden = true;
+  tropObs?.disconnect();
+  if (!('IntersectionObserver' in window)) return;
+  tropObs = new IntersectionObserver((es) => {
+    if (!es.some((e) => e.isIntersecting)) return;
+    tropObs.disconnect();
+    renderTrop(title, token);
+  }, { rootMargin: '0px 0px 900px 0px' });
+  tropObs.observe($('#attribution'));
+}
+async function renderTrop(title, token) {
+  const T = curTrail();
+  if (!T || T.steps[T.pos]?.t !== title) return;
+  let r;
+  try { r = await computeTrop(T); } catch { return; }
+  const items = r.items.filter((x) => !isRead(x.t)).slice(0, 3);
+  if (token !== openToken || !items.length) return;
+  await loadThumbs(items.map((x) => x.t));
+  if (token !== openToken) return;
+  const last = r.path[r.path.length - 1];
+  $('#trop-count').textContent = `${r.path.length} ${plural(r.path.length, 'krok', 'kroki', 'kroków')}`;
+  $('#trop-list').replaceChildren(...items.map((x, i) => {
+    const set = new Set([...x.from, ...x.to, last]);
+    const linked = r.path.filter((s) => set.has(s));
+    const lines = linked.slice(0, 3).map((s, k) => recLine(null, s, k === 2 ? linked.length - 3 : 0));
+    return recRow(x.t, i, lines, linked.length, () => {
+      const shown = r.path.slice(-8);
+      const rows = shown.map((s) => ({ t: s, bead: 1, on: set.has(s) }));
+      if (r.path.length > 8) rows.unshift({ t: `+${r.path.length - 8} wcześniejszych`, bead: 1, on: false });
+      openWhy(x.t, `${linked.length} z ${r.path.length} ${plural(r.path.length, 'kroku', 'kroków', 'kroków')} tropu łączy się z tym hasłem`, whySvg(rows, linked.length), title);
+    });
+  }));
+  $('#trop-next').hidden = false;
+}
+
+// Ekran Węzły (#/wezly).
+let nodesRun = 0;
+async function renderNodes() {
+  show('nodes');
+  document.title = 'Węzły · Zakamarki';
+  setProgress(0);
+  window.scrollTo(0, 0);
+  const run = ++nodesRun;
+  const st = $('#nodes-status');
+  const list = $('#nodes-list');
+  const readN = [...state.reads.values()].filter((r) => isRead(r.title)).length;
+  $('#nodes-num').textContent = '';
+  $('#nodes-unit').textContent = '';
+  $('#nodes-sub').textContent = '';
+  st.hidden = false;
+  st.textContent = 'Liczę…';
+  await links.load();
+  if (run !== nodesRun) return;
+  await backfillLinks((i, n) => { if (run === nodesRun && n) st.textContent = `Pobieram linki z przeczytanych haseł: ${i} z ${n}`; });
+  if (run !== nodesRun) return;
+  const all = await computeNodes();
+  if (run !== nodesRun) return;
+  const famN = new Set(all.flatMap((x) => x.fams.map((f) => f.root?.id))).size;
+  $('#nodes-num').textContent = all.length;
+  $('#nodes-unit').textContent = plural(all.length, 'węzeł', 'węzły', 'węzłów');
+  $('#nodes-sub').textContent = all.length ? `z ${famN} ${plural(famN, 'tropu', 'tropów', 'tropów')} · ${readN} przeczytanych` : `${readN} przeczytanych`;
+  if (!all.length) {
+    st.textContent = 'Węzeł pojawi się, gdy do jednego nieprzeczytanego hasła poprowadzą przeczytane z trzech różnych tropów.';
+    list.hidden = true;
+    return;
+  }
+  st.hidden = true;
+  const top = all.slice(0, 30);
+  await loadThumbs(top.map((x) => x.t));
+  if (run !== nodesRun) return;
+  list.replaceChildren(...top.map((x, i) => {
+    const lines = x.fams.slice(0, 3).map((f) => recLine(f.root ? dayLabel(f.root.start) : '', f.titles[0], f.titles.length - 1));
+    if (x.fams.length > 3) lines.push(recLine('', `+${x.fams.length - 3} ${tropsWord(x.fams.length - 3)}`));
+    return recRow(x.t, i, lines, x.fams.length, () => {
+      const rows = x.fams.slice(0, 6).map((f) => ({ day: f.root ? dayLabel(f.root.start) : '', t: f.titles[0], more: f.titles.length - 1, on: true }));
+      if (x.fams.length > 6) rows.push({ day: '', t: `+${x.fams.length - 6} ${tropsWord(x.fams.length - 6)}`, on: true, ghost: true });
+      openWhy(x.t, `${x.fams.length} ${tropsWord(x.fams.length)} · ${x.n} ${plural(x.n, 'przeczytane hasło linkuje', 'przeczytane hasła linkują', 'przeczytanych haseł linkuje')} tutaj`, whySvg(rows, x.fams.length), null);
+    });
+  }));
+  list.hidden = false;
+}
+
 /* ——— mapa tropu (minimapa M2) ———
    Arkusz od dołu z całą rodziną tropu jak z linią metra: bieżący trop to główna linia,
    odgałęzienia (tropy połączone przez branchOf) skręcają w bok od hasła, w którym się rozeszły.
@@ -1445,7 +1831,7 @@ async function openArticle(requested) {
   show('reader');
   const status = $('#status');
   const article = $('#article');
-  $('#article-title').textContent = shownTitle(requested);
+  $('#article-title').textContent = shy(shownTitle(requested), 7, true);
   $('#article-title').lang = lang;
   article.replaceChildren();
   article.lang = lang;
@@ -1471,7 +1857,7 @@ async function openArticle(requested) {
 
     const tmp = document.createElement('div');
     tmp.innerHTML = p.displaytitle;
-    $('#article-title').textContent = tmp.textContent || p.title;
+    $('#article-title').textContent = shy(tmp.textContent || p.title, 7, true);   // długie słowo obok PL / Aa / Na później
     document.title = p.title + ' · Zakamarki';
     article.innerHTML = cleanArticle(p.text, lang);
     coverFromArticle(title);
@@ -1503,7 +1889,12 @@ async function openArticle(requested) {
     if (mark) { meter.jumpTo(mark, 120, false); mark.classList.add('flash'); }
     else if (!resumeHere && spot && (!viaLink || Date.now() - spot.at < VISIT_GAP)) meter.restore(spot);
     paintLinks(linkMaps.get(title));
-    if (!linkMaps.has(title)) linkTargets(title).then((map) => { if (token === openToken) paintLinks(map); });
+    links.pending.set(title, linkTargets(title).then((map) => {
+      if (token !== openToken) return;
+      paintLinks(map);
+      return recordBodyLinks(title, map);
+    }).catch(() => {}));
+    watchTrop(title, token);
   } catch (err) {
     if (token !== openToken) return;
     status.textContent = 'Nie udało się wczytać artykułu. ' + (err.message || '');
@@ -2400,10 +2791,12 @@ function route() {
   toggleMap(false);
   closePeek();
   closeSelBar();
+  closeWhy();
   $('#suggestions').hidden = true;
   hideFloat();
   if (m) { toggleSearch(false); openArticle(keyFor(m[1] || WIKI_LANG, decodeTitle(m[2]))); }
   else if (location.hash === '#/zakreslenia') renderHighlights();
+  else if (location.hash === '#/wezly') renderNodes();
   else renderHome();
 }
 // Start: najpierw dane z bazy, potem pierwszy widok.
