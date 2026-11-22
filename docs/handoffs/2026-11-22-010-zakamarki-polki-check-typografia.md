@@ -1,8 +1,8 @@
 # Handoff: Zakamarki — runda półek wdrożona, skrypt kontrolny, analiza nazwy i kolorów
 
 **Data:** 2026-11-22
-**Stan:** `zakamarki-v15` wysłana. Schemat bazy bez zmian (DB v3, kopia v3).
-**Następna sesja zaczyna od:** jej wyboru kierunku nazwy z `.drafts/makiety/typografia.html` (K1–K5 + kolor nazwy) → kod; potem decyzja o makietach całej aplikacji z briefu „Wnętrze” (niżej).
+**Stan:** `zakamarki-v15` wysłana; w drugiej części sesji paleta **Wnętrze o zachodzie** (`zakamarki-v16`). Schemat bazy bez zmian (DB v3, kopia v3).
+**Następna sesja zaczyna od:** kroju **samej nazwy** „zakamarki” (nagłówki półek i ekranów zostają w Inter Tight — jej decyzja), już w kolorach Wnętrza: 2–3 warianty z K1/K4/K5, bez przełączników. Jedna decyzja naraz (była przytłoczona stroną z pięcioma kierunkami i przełącznikami).
 
 ## Zrobione
 - **A · Q4 Kropla:** nowy cudzysłów w `#dock` (`index.html`): dwa zamknięte kształty-krople, bez łączeń. Obejrzany w docelowym rozmiarze — czysty.
@@ -45,3 +45,11 @@ Otwórz w panelu (serwer `zakamarki`) http://localhost:8000/.drafts/makiety/typo
 2. Zapytaj o sprzeczności briefu „Wnętrze” z STYL (numeracja, beż, indygo vs kobalt, Lampy vs akcenty), potem ewentualnie makiety całej aplikacji z briefu.
 3. Przed pushem: node tools/check.mjs. Na koniec handoff 011, STYL/PLAN, commit, push; pokaż obserwacje task-observer.
 ```
+
+## Druga część sesji: kolory (2026-11-22)
+- Na jej prośbę kolejność: **najpierw kolory, potem krój nazwy**; nagłówki „Czytam / Na później / Przeczytane” zostają bez zmian (K2 i K3 z makiety typografii odpadają w tej formie).
+- Makieta `.drafts/makiety/kolory.html`: trzy ramki z **prawdziwą aplikacją** (iframe `index.html`, nadpisane zmienne, przykładowe hasła tylko w pamięci, zapisy do bazy wyłączone), Krem / Wnętrze filmowe / Wnętrze o zachodzie, przycisk „Pokaż nocą”.
+- **Wybór: Wnętrze o zachodzie**, z jedną poprawką — tafla Na później delikatnie jaśniejsza (`#e8c96f` zamiast pełnej musztardy; kontrast tytułów jak na tafli morskiej ~11:1).
+- Wdrożone (`zakamarki-v16`): `:root` i `:root[data-scheme="dark"]` w `style.css` (wartości i role w STYL), nowe zmienne `--slab-later`, `--slab-done`, `--chip-bg`; `GLASS_TEXT` + `--gt` w `glassLevel()` (liczba „22/41” jasna na ciemnej śliwce/pomidorze); `theme-color` w `index.html` i kolory w `manifest.webmanifest` → `#efe2d1`.
+- Sprawdzone 375 px Papier/Kakao: start, półki, Tropy, czytnik; konsola czysta.
+- Zauważone, nie ruszane: (1) w czytniku długi tytuł obok PL / Aa / Na później łamie się bez łącznika („Letchwor-th” bez kreski) — stary problem, nie od palety; można użyć tego samego `shy()`; (2) nocą nagłówek jest śliwkowy, a tło Kakao brązowe — lekki szew kolorystyczny między warstwami.

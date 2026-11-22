@@ -1,9 +1,9 @@
 /* Zakamarki — etap 3.
    Dwie niezależne warstwy kolorów:
-   1. PALETA APLIKACJI „Krem” (nagłówek, trop, przyciski, panel, ekran startowy) — zmienne
-      --bg, --surface, --fg, --muted, --rule, --accent i kolory akcentów --pop-*. Wersja dzienna
-      albo nocna według html[data-scheme], które app.js ustawia zgodnie z jasnością tła czytnika.
-      Kierunek: kremowa baza i zabawne, nasycone akcenty; kolor wnoszą też miniatury haseł.
+   1. PALETA APLIKACJI „Wnętrze o zachodzie” (nagłówek, trop, przyciski, panel, ekran startowy) —
+      zmienne --bg, --surface, --fg, --muted, --rule, --accent i kolory akcentów --pop-*. Wersja dzienna
+      albo nocna („Wnętrze nocą”) według html[data-scheme], które app.js ustawia zgodnie z jasnością tła
+      czytnika. Kierunek: ciepły beż, akcenty postarzone (przygaszone brązem), kobaltowe liczby.
    2. TŁO CZYTNIKA (html[data-page]) — tylko kartka z tekstem: --page, --text, --page-*.
       Dobrane pod astygmatyzm: kontrast 10–13:1 zamiast 21:1, bez czystej bieli i czerni.
    Panel „Aa” ustawia krój, grubość, wielkość, interlinię i szerokość kolumny na <html>.
@@ -21,28 +21,33 @@
   --radius: 22px;
 }
 
-/* ——— 1. Paleta aplikacji: Krem (dzień) ——— */
+/* ——— 1. Paleta aplikacji: Wnętrze o zachodzie (dzień, od 2026-11-22; wcześniej Krem) ———
+   Neutralne: Kartka, Tło (kolor główny), Piasek, Linia, Szept, Tusz; liczby w kobalcie (Atrament).
+   Akcenty w wersji „pełnej” (okładki, szkło); jasne wersje tylko tam, gdzie stoi na nich tekst. */
 :root {
-  --bg: #f1e7dc;
-  --surface: #fff8f0;
-  --surface-2: #e8dccf;
-  --fg: #22191f;
-  --muted: #6e5f57;
-  --rule: #e3d5c7;
-  --brand: #22191f;
-  --accent: #2d54e0;          /* kobalt: fokus, suwaki, zaznaczenia */
-  --pop-pink: #f6b3d3;
-  --pop-orange: #e8622c;
-  --pop-mustard: #f2c230;
-  --pop-cobalt: #2d54e0;
-  --pop-lime: #c9dd6b;
-  --pop-lilac: #b48cf0;       /* fiolet ze Szkliwa w wersji pastelowej: półka Przeczytane, karty bez zdjęcia */
-  --pop-ink: #22191f;         /* czarna pigułka (przyciski główne) */
-  --plank: #dccdbd;           /* deska pod okładkami na półce Czytam */
-  --cover-base: #fff8f0;      /* okładki bez zdjęcia: kolor palety zmieszany z kremem (C1, także nocą) */
+  --bg: #efe2d1;              /* Tło */
+  --surface: #faf2e8;         /* Kartka */
+  --surface-2: #e2cfb8;       /* Piasek */
+  --fg: #2a1c17;              /* Tusz */
+  --muted: #6b5848;           /* Szept */
+  --rule: #cdb69c;            /* Linia */
+  --brand: #2a1c17;
+  --accent: #2b46b8;          /* kobalt: fokus, suwaki, zaznaczenia */
+  --pop-pink: #d98aa3;        /* brudny róż */
+  --pop-orange: #d0472f;      /* pomidor */
+  --pop-mustard: #d6a11e;     /* musztarda */
+  --pop-cobalt: #2b46b8;      /* Atrament: wielkie liczby */
+  --pop-lime: #75852b;        /* oliwka */
+  --pop-lilac: #8e4a7e;       /* śliwka */
+  --pop-ink: #2a1c17;         /* czarna pigułka (przyciski główne) */
+  --plank: #cdb69c;           /* deska pod okładkami na półce Czytam */
+  --slab-later: #e8c96f;      /* tafla Na później: musztarda rozjaśniona, żeby tytuły na niej były wyraźne */
+  --slab-done: #b5d6cf;       /* tafla Przeczytane: morska, jasna */
+  --chip-bg: #cfd79e;         /* chipy z licznikami: oliwka jasna (pełna ma za mały kontrast z tekstem) */
+  --cover-base: #faf2e8;      /* okładki bez zdjęcia: kolor palety zmieszany z Kartką (C1, także nocą) */
   --cover-mix: 55%;
-  --on-pop: #fff8f0;          /* tekst na nasyconym kolorze i na atramencie */
-  --on-pop-light: #22191f;    /* tekst na jasnym akcencie (róż, musztarda, limonka) */
+  --on-pop: #faf2e8;          /* tekst na nasyconym kolorze i na atramencie */
+  --on-pop-light: #2a1c17;    /* tekst na jasnym akcencie */
   /* Zakreślacze „Lampy” (z lamp-grzybków z moodboardu): własna rodzina, nie powtarza akcentów
      interfejsu. Kolor kładziony jako marker z przezroczystością --hl-a (nocą słabszą). */
   --hl-1: #7ccfb9;            /* morska zieleń */
@@ -54,22 +59,28 @@
   color-scheme: light;
 }
 
-/* ——— Krem nocą: ciepły atrament, pastele bez zmian, atrament odwrócony na krem ——— */
+/* ——— Wnętrze nocą: śliwkowa głębia, beżowy tekst, akcenty rozjaśnione ——— */
 :root[data-scheme="dark"] {
-  --bg: #1f1a1c;
-  --surface: #2b2427;
-  --surface-2: #362d31;
-  --fg: #f1e7dc;
-  --muted: #b3a497;
-  --rule: #3a3134;
-  --brand: #f1e7dc;
-  --accent: #8aa2ff;
-  --pop-orange: #f07f4d;
-  --pop-mustard: #f2c94c;
-  --pop-cobalt: #8aa2ff;
-  --pop-ink: #f1e7dc;
-  --on-pop: #1f1a1c;
-  --plank: #3d3337;
+  --bg: #1a1420;
+  --surface: #241c2b;
+  --surface-2: #2e2536;       /* Głębia */
+  --fg: #efe2cf;
+  --muted: #b0a294;
+  --rule: #3d3245;
+  --brand: #efe2cf;
+  --accent: #9fb0f0;
+  --pop-pink: #e8a4b4;
+  --pop-orange: #ef7a68;
+  --pop-mustard: #e5b34a;
+  --pop-cobalt: #9fb0f0;
+  --pop-lime: #b9b45a;
+  --pop-lilac: #c59bc0;
+  --pop-ink: #efe2cf;
+  --on-pop: #1a1420;
+  --plank: #3d3245;
+  --slab-later: #e5b34a;
+  --slab-done: #6fb5ad;
+  --chip-bg: #b9b45a;
   --hl-a: 40%;
   color-scheme: dark;
 }
@@ -268,11 +279,11 @@ main { padding: 6px var(--gutter) 48px; }
   -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
   border-top: 2.5px solid var(--g);
 }
-.lvl b { position: absolute; right: 6px; top: 4px; font-size: .68rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--on-pop-light); }
+.lvl b { position: absolute; right: 6px; top: 4px; font-size: .68rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--gt, var(--on-pop-light)); }
 
 /* Na później i Przeczytane: okładki za taflą plexi */
-.shelf-later { --c: var(--pop-mustard); }
-.shelf-done { --c: var(--pop-lilac); }
+.shelf-later { --c: var(--slab-later); }
+.shelf-done { --c: var(--slab-done); }
 .plexi { position: relative; margin: 0 calc(8px - var(--gutter)); }
 .plexi .shelf-row { padding: 12px 10px 16px; border-radius: 14px; scroll-padding-inline: 10px; gap: 10px; }
 .slab {
@@ -335,7 +346,7 @@ main { padding: 6px var(--gutter) 48px; }
 .dots .seg.j { background: none; border-top: 2px dashed var(--fg); height: 0; }
 .dots .seg.gap { width: 4px; background: none; }
 .big-num { font-size: 4rem; font-weight: 600; letter-spacing: -.045em; line-height: .95; font-variant-numeric: tabular-nums; }
-.chip { font-size: .8rem; font-weight: 500; padding: 6px 11px; border-radius: 999px; background: var(--pop-lime); color: var(--on-pop-light); white-space: nowrap; }
+.chip { font-size: .8rem; font-weight: 500; padding: 6px 11px; border-radius: 999px; background: var(--chip-bg); color: var(--on-pop-light); white-space: nowrap; }
 
 /* ——— trop nad artykułem ——— */
 .trail-row { display: flex; align-items: center; gap: 6px; padding: 10px 0 2px; }

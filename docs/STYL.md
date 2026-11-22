@@ -6,7 +6,7 @@ Same obrazki z referencjami leżą lokalnie w `.drafts/inspiracje/` (poza gitem,
 
 ## W jednym zdaniu
 
-Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z treści (miniatury haseł) i z kilku nasyconych akcentów, do tego odrobina humoru (buźki, bloby, iskry) — ale czytnik zawsze najpierw czytelny.
+Ciepła, wnętrzarska, redakcyjna: duża pewna typografia, beżowa baza z postarzonymi akcentami (paleta Wnętrze o zachodzie), kolor z treści (miniatury haseł) i z kilku nasyconych akcentów, do tego odrobina humoru (buźki, bloby, iskry) — ale czytnik zawsze najpierw czytelny.
 
 ## Co lubi (z referencji)
 
@@ -24,7 +24,7 @@ Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z tre
 
 ## Czego nie chce
 
-- Beż-minimalizmu i „nude” w interfejsie (czytnik to wyjątek, patrz niżej).
+- Beż-minimalizmu i „nude” **bez akcentów** (beżowa baza Wnętrza jest w porządku, bo niesie wyraźne akcenty i miniatury).
 - Wyglądu „jak z AI”: gładkich gradientów, poświat, cieniowania udającego 3D, idealnie symetrycznych figur, tęcz jako ozdoby, losowych avatarów.
 - Faktur udających papier na ikonach i logo.
 - Cienkich, eleganckich szeryfów (odrzucone: Instrument Serif) i zwyczajnych groteskow w nazwie (odrzucony: Bricolage Grotesque); tęczowego tekstu.
@@ -33,7 +33,16 @@ Kremowa, zabawna, redakcyjna: duża pewna typografia, spokojna baza, kolor z tre
 ## Wybrane rozwiązania
 
 ### Dwie warstwy kolorów
-1. **Paleta aplikacji „Krem”** — nagłówek, ekran startowy, przyciski, panele.
+1. **Paleta aplikacji „Wnętrze o zachodzie” (wybrana 2026-11-22 z `.drafts/makiety/kolory.html`; zastąpiła Krem).** Z jej briefu wizualnego („Wnętrze”, Wes Anderson / Ghibli / Amélie): kolory postarzone, ciepłe światło wnętrz.
+   - Neutralne: Tło `#efe2d1` (kolor główny), Kartka `#faf2e8`, Piasek `#e2cfb8`, Linia `#cdb69c`, Szept `#6b5848`, Tusz `#2a1c17`; liczby w kobalcie `#2b46b8` (porównywała z indygo z wersji „filmowej” — wybrała kobalt, jak na swojej planszy z nazwą).
+   - Akcenty pełne (`--pop-*`): brudny róż `#d98aa3`, musztarda `#d6a11e`, oliwka `#75852b`, śliwka `#8e4a7e`, pomidor `#d0472f`. Każdy akcent ma w briefie trzy wersje: jasny (tła), pełny (kształty, szkło), tekst. Zasada warstw: **dolna jasna, wierzchnia pełna**.
+   - Tafle półek: **Na później** = musztarda rozjaśniona `#e8c96f` (jej prośba: pełna była za ciemna pod tytułami), **Przeczytane** = morska jasna `#b5d6cf` („seledynowa” — tytuły dobrze widać). Chipy: oliwka jasna `#cfd79e`. Liczba na szkle jasna na śliwce i pomidorze (`GLASS_TEXT`).
+   - Nocą „Wnętrze nocą”: Tło `#1a1420`, Kartka `#241c2b`, Głębia `#2e2536`, tekst beż `#efe2cf`, liczby `#9fb0f0`, akcenty rozjaśnione.
+   - Odrzucone w tej rundzie: Krem (zostaje w historii poniżej), Wnętrze filmowe (indygo, chłodniej).
+   - Zakreślacze „Lampy” zostają: są jaśniejsze i czystsze niż postarzone akcenty, więc się nie powtarzają.
+   - **Uwaga:** brief ma też elementy wcześniej odrzucone (numeracja 0.1, Instrument Serif) — te odrzucenia obowiązują dalej.
+
+   *Historia — paleta „Krem” (do 2026-11-22):* nagłówek, ekran startowy, przyciski, panele.
    - Baza: krem `#f1e7dc`, karty `#fff8f0`, atrament `#22191f` (tekst i czarne pigułki).
    - Akcenty (`--pop-*`): róż `#f6b3d3`, musztarda `#f2c230`, limonka `#c9dd6b`, kobalt `#2d54e0`, pomarańcz `#e8622c`, **liliowy `#b48cf0`** (fiolet ze Szkliwa w wersji pastelowej, od 2026-11-18: półka Przeczytane, karty bez zdjęcia).
    - Nocą: ciepły atrament `#1f1a1c`, pastele bez zmian, atramentowe pigułki odwrócone na krem.

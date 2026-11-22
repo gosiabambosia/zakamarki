@@ -375,6 +375,8 @@ async function loadThumbs(titles) {
 const SEEN_AT = 0.15, DONE_AT = 0.75;
 const COVER_COLORS = ['var(--pop-pink)', 'var(--pop-mustard)', 'var(--pop-lime)', 'var(--pop-lilac)', 'var(--pop-orange)'];
 const GLASS = ['var(--pop-pink)', 'var(--pop-mustard)', 'var(--pop-lime)', 'var(--pop-lilac)', 'var(--pop-orange)'];
+// Kolor liczby „22/41” na szkle: na ciemnych pełnych akcentach (śliwka, pomidor) jasny, na pozostałych tusz.
+const GLASS_TEXT = ['var(--on-pop-light)', 'var(--on-pop-light)', 'var(--on-pop-light)', 'var(--on-pop)', 'var(--on-pop)'];
 const SHELF_ROW_MAX = 24;                 // w rzędzie; reszta po rozwinięciu półki
 
 function shelves() {
@@ -414,6 +416,7 @@ function glassLevel(rec, i) {
   s.className = 'lvl';
   s.style.setProperty('--p', Math.round(100 * rec.read / Math.max(1, rec.n)));
   s.style.setProperty('--g', GLASS[i % GLASS.length]);
+  s.style.setProperty('--gt', GLASS_TEXT[i % GLASS_TEXT.length]);
   const b = document.createElement('b');
   b.textContent = `${rec.read}/${rec.n}`;
   s.append(b);
