@@ -134,7 +134,7 @@ html[data-view="reader"] body { background: var(--page); }
 /* ——— pasek postępu czytania ——— */
 #progress {
   position: fixed; top: 0; left: 0; height: 3px; width: 0;
-  background: linear-gradient(90deg, var(--pop-pink), var(--pop-orange), var(--pop-mustard));
+  background: var(--pop-cobalt);   /* kobalt jak wielkie liczby (v29; wcześniej tęczowy gradient ze starej palety) */
   z-index: 30; transition: width .1s linear;
 }
 
