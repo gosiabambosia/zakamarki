@@ -1,6 +1,6 @@
 # Zakamarki — kontekst dla Claude Code
 
-Przeczytaj ten plik w całości przed pierwszą zmianą. Szczegóły koncepcji i plan etapów: `docs/PLAN.md`. Kierunek wizualny, UX i opis referencji właścicielki: `docs/STYL.md` — **czytaj przed każdą zmianą wyglądu**. Stan prac i ostatnie decyzje: najnowszy plik w `docs/handoffs/`.
+Przeczytaj ten plik w całości przed pierwszą zmianą. Szczegóły koncepcji i plan etapów: `docs/PLAN.md`. Kierunek wizualny, UX i opis referencji właścicielki: `docs/STYL.md` — **czytaj przed każdą zmianą wyglądu**. Stan prac i ostatnie decyzje: najnowszy plik w `docs/handoffs/`. Statystyki (etap 5): wszystkie opcje i jej wybór w `docs/STATYSTYKI.md`.
 
 ## Czym jest projekt
 

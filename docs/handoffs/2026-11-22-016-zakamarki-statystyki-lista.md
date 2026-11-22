@@ -1,8 +1,9 @@
 # Handoff: Zakamarki — drobne poprawki (v27–v29) i etap 5a: od próbnika form do listy statystyk
 
 **Data:** 2026-11-22 (wieczór, po handoffie 015)
-**Stan:** `zakamarki-v29` na `main`. Repo czyste po commicie handoffu. Użytkowniczka skończyła sesję („pa”).
-**Następny krok:** 5a, decyzja (b): ona zaznacza statystyki na **liście „co mierzą”** (`.drafts/makiety/statystyki-lista.html`), wkleja linijkę z „kopiuj”; potem **razem** wybieramy wygląd (formy z próbnika jako punkt wyjścia).
+**Stan:** `zakamarki-v29` na `main`. Repo czyste po commicie handoffu. Użytkowniczka robi przerwę.
+**Decyzja (b) zamknięta:** wybrała **25 z 42** statystyk (lista, wybór i kolejność budowy: `docs/STATYSTYKI.md`; opcje zostają, może coś dodać).
+**Następny krok:** **razem wygląd** wybranych statystyk — po jednej (albo po grupie), na jej kopii, formy z próbnika jako punkt wyjścia; potem (c) czwarte kółko w pasku i wdrożenie.
 
 ## Co zrobione
 1. **v27 — odstęp liter:** „hasła dziś” (`.hero-unit span`) i tytuł karty „Czytaj dalej” (`.next-t`) z −0,035/−0,03 na **−0,01 em**. Zmierzone pikselowo (każda litera na osobnym canvasie, najmniejsza szpara w rzędach pikseli): przy −0,035 kreska „ł” wchodziła w „a” o 0,018 em; szpara pojawia się od −0,015.
@@ -13,6 +14,21 @@
 3. **v29 — pasek postępu czytania** (`#progress`) w kobalcie `--pop-cobalt` zamiast tęczowego gradientu ze starej palety (jej prośba).
 4. **5a, próbnik form** `.drafts/makiety/statystyki-probnik.html` (poza gitem): 10 kafli liczonych z jej kopii (IndexedDB tej przeglądarki albo plik kopii, tylko w pamięci karty; nie zakłada pustej bazy). Formy: zegar czytania (sektor nocy, płatki, gwiazda z logo), dzień po dniu (klocki w barwach tropów), tropy jako nici (drzewo w pasach), jak długo zostajesz (kropka = wizyta, skala log), Na później (grzbiety na desce), hasła jak słoje, lejek głębokości, powroty (kropki), hasła-mosty (linie zbiegają się w liczbie), ostatnie zakreślenie (cytat w markerze, Literata). Wybór do 5, kolejność pigułkami, „kopiuj”, telefon z podglądem (szeroko) / pigułki przyklejone (wąsko). Pierwsza runda (12 kafli „liczba + słupki”) była za płaska.
 5. **5a, lista statystyk** `.drafts/makiety/statystyki-lista.html` (jej prośba po próbniku): 42 pozycje w 7 grupach — Czas i rytm, Tropy, Hasła, Półki i zakreślenia, Mapa linków, Wikidata (5c), Wikipedia (nowe zapytania). Każda: nazwa, jedno zdanie „co mierzy”, źródło danych i od kiedy (pomarańczowe „nowy zapis” = trzeba zacząć zapisywać, wynik dopiero od wdrożenia). Kółka do zaznaczenia, licznik, linijka „kopiuj” w kolejności zaznaczania.
+
+## Jej wybór (decyzja (b), 2026-11-22)
+```
+statystyki · czas, dni-tyg, kalendarz, długość, tropy, kształt, daleko, mosty, nowe, porzucone, akapity, zakreślenia, dokąd, słowa, później, węzły, brzeg, gęstość, wzrost, epoki, miejsca, rodzaje, ludzie, kategorie, niszowość
+```
+„Na razie to — ale zapamiętaj te opcje, bo może będę chciała coś dodać” → wszystkie 42 opcje z zaznaczeniem w `docs/STATYSTYKI.md` (wygenerowane z `statystyki-lista.html`, ten sam opis i źródło). Niewybrane (17): typowa wizyta, pora dnia, sesje, dzień po dniu, skoki, wracanie do tropów, głębokość czytania, długość a przeczytanie, powroty, droga do końca, najdłużej czytane, tempo, angielskie i polskie, jak długo czeka, ostatnie zakreślenie, wiek hasła, długość w słowach. **Uwaga:** w próbniku form najmocniejsze wglądy dały „pora dnia” (88% nocą) i „długość a przeczytanie” (47% vs 3%) — nie wybrała ich; nie przemycać, najwyżej raz przypomnieć przy wyglądzie.
+
+Podział według budowy (szczegóły w `docs/STATYSTYKI.md`):
+1. z danych, które już są: czas, akapity, dni-tyg, kalendarz, nowe, wzrost, długość, tropy, kształt, daleko, mosty, porzucone, zakreślenia, dokąd, później;
+2. z pamięci linków: węzły, brzeg, gęstość;
+3. nowy zapis (zacząć jak najwcześniej): słowa — sprawdzane słowa i frazy (Wikisłownik, tłumacz);
+4. 5c Wikidata: epoki, miejsca, rodzaje, ludzie;
+5. nowe zapytania do Wikipedii: kategorie, niszowość (wyświetlenia — w karcie hasła ich nie chciała, tu wybrała sama).
+
+25 statystyk to dużo na jeden ekran → przy wyglądzie zaproponować układ ekranu (np. grupy jak na liście, rozwijane) — jedna decyzja naraz.
 
 ## Jej dane (kopia z 22.11, tylko do orientacji — nic nie zapisane)
 131 otwarć w 7 dniach (16–22 lis), 53 różne hasła, akapity zmierzone w 20 hasłach, czas w 49 wizytach (pomiar od 18 lis 4:29), 32 rodziny tropów (44 tropy, 12 odgałęzień), 37 na później, 1 zakreślenie. Wyraźne wzory: **88% otwarć między 22:00 a 5:00** (szczyt 4:00), 27 z 32 tropów kończy się na 1–2 hasłach, czytanie „gwiazdą” (Anti-realism: 8 odgałęzień), krótkie hasła (≤ 27 akapitów) czytane średnio w 47%, dłuższe w 3%, typowa wizyta 17 s. Pole `first` w `reads` to nie czas (nie używać do „drogi do końca” — liczyć od pierwszej wizyty w `history`); `from` w historii ma tytuł tylko przy przejściu linkiem (92 ze 131 to `null`).
@@ -43,8 +59,8 @@ Na start:
 3. Podgląd: preview_start {name: "zakamarki"}; sprawdź w karcie fetch('/README.md', {cache:'no-store'}) — jeśli pada, a curl działa, stary serwer blokuje port (patrz handoff, uwagi techniczne).
 
 Zadanie — etap 5a, ciąg dalszy:
-1. Ona zaznacza statystyki na liście .drafts/makiety/statystyki-lista.html (http://[::1]:8000/...) i wkleja linijkę „statystyki · …”. Jeśli wybierze pozycje „nowy zapis”, zaproponuj najpierw sam zapis (wynik zbiera się od wdrożenia); pozycje 5c/Wikipedia odłóż do swoich etapów.
-2. Wygląd razem: dla wybranych pozycji forma z próbnika .drafts/makiety/statystyki-probnik.html albo nowa — na jej kopii (wczytuje plik), jedna statystyka naraz, przy każdej liczbie mianownik i „od kiedy”.
+1. Wybór statystyk jest zamknięty: docs/STATYSTYKI.md (25 z 42; opcje zostają — jeśli coś doda/zmieni, aktualizuj [x] w tym pliku). Najpierw wdroż sam „nowy zapis” dla `słowa` (sprawdzane słowa i frazy), żeby dane zaczęły się zbierać — przy nowym magazynie: DB_VERSION, krok migracji, BACKUP_VERSION, przypomnienie o kopii.
+2. Wygląd razem, grupa po grupie (najpierw grupa 1 z docs/STATYSTYKI.md — dane już są): forma z próbnika .drafts/makiety/statystyki-probnik.html albo nowa, pokazana na jej kopii (wczytuje plik kopii z telefonu), przy każdej liczbie mianownik i „od kiedy”. 25 pozycji na jeden ekran to dużo — zacznij od decyzji o układzie ekranu (np. grupy jak na liście). Grupy 2–5 (linki, 5c, zapytania) w swoich krokach.
 3. Decyzja (c): miejsce — czwarte kółko w dolnym pasku (znak kształtem, w 24 px obok Biblioteki, Kropli i „części wspólnej”).
 4. Wdrożenie ekranu Statystyki (#/statystyki), CACHE +1, 375 px i konsola, commit, push.
 
