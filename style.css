@@ -159,7 +159,7 @@ html[data-view="reader"] body { background: var(--page); }
   transform: translateY(.1em);
 }
 .brand .star { display: inline-block; width: .7em; height: .86em; margin-left: .16em; vertical-align: baseline;
-  fill: var(--pop-orange); transform: translateY(.113em); }   /* środek gwiazdy = środek wysokości małych liter (x-height Corben 0,633 em) */
+  fill: var(--pop-orange); transform: translateY(-.031em); }  /* środek gwiazdy = środek tuszu słowa (od linii pisma do góry „k”, 0,921 em); dół nad linią pisma */
 .round {
   flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer;
   display: grid; place-items: center; background: var(--pop-ink); color: var(--on-pop);

@@ -672,7 +672,7 @@ function renderHome() {
     cont.href = hrefFor(t);
     if (tr) cont.dataset.resume = tr.id; else delete cont.dataset.resume;
     if (top) cont.dataset.readResume = t; else delete cont.dataset.readResume;
-    cont.querySelector('.next-t').textContent = shownTitle(t);
+    cont.querySelector('.next-t').textContent = shy(shownTitle(t));   // długie słowo dzielone łącznikiem jak na półkach (Corres-pondence)
     const when = top ? top.at : lastOpened(t);
     cont.querySelector('.next-s').textContent = top
       ? [`${top.read} z ${top.n} akapitów`, ago(when)].join(' · ')
