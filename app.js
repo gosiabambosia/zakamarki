@@ -494,23 +494,14 @@ function shelfLink(title, cls, resumeRead) {
 // spółgłoskami (samogłoska-spółgłoska | spółgłoska-samogłoska) najbliżej środka słowa, np. „Corres-pondence”.
 // Przeglądarka sama takich słów w wąskiej kolumnie nie dzieli, a cięcie byle gdzie gubi łącznik.
 const VOWEL = /[aeiouyąęó]/i;
-// min = od ilu liter dzielić; loose (tytuł w czytniku) = gdy brak miejsca samogłoska-spółgłoska | spółgłoska-
-// samogłoska, wystarczą dwie spółgłoski przed samogłoską („Letch-worth”), byle obie części miały samogłoskę.
-function shy(text, min = 11, loose = false) {
+function shy(text) {
   return text.split(/([ -])/).map((w) => {
-    if (w.length <= min) return w;
-    const near = (i, best) => best < 0 || Math.abs(i - w.length / 2) < Math.abs(best - w.length / 2);
+    if (w.length <= 11) return w;
     let best = -1;
     for (let i = 4; i <= w.length - 4; i++) {
-      if (VOWEL.test(w[i - 2]) && !VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1]) && near(i, best)) best = i;
-    }
-    if (best < 0 && loose) {
-      for (let i = 3; i <= w.length - 3; i++) {
-        if (!VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1]) && VOWEL.test(w.slice(0, i)) && near(i, best)) best = i;
+      if (VOWEL.test(w[i - 2]) && !VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1])) {
+        if (best < 0 || Math.abs(i - w.length / 2) < Math.abs(best - w.length / 2)) best = i;
       }
-      // ostatnia możliwość: przed spółgłoską między samogłoskami („Phenome-nalism”)
-      for (let i = 3; best < 0 && i <= w.length - 3; i++) if (VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1])) best = i;
-      for (let i = best + 1; best > 0 && i <= w.length - 3; i++) if (VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1]) && near(i, best)) best = i;
     }
     return best < 0 ? w : w.slice(0, best) + '\u00ad' + w.slice(best);
   }).join('');
@@ -1831,7 +1822,7 @@ async function openArticle(requested) {
   show('reader');
   const status = $('#status');
   const article = $('#article');
-  $('#article-title').textContent = shy(shownTitle(requested), 7, true);
+  $('#article-title').textContent = shownTitle(requested);
   $('#article-title').lang = lang;
   article.replaceChildren();
   article.lang = lang;
@@ -1857,7 +1848,7 @@ async function openArticle(requested) {
 
     const tmp = document.createElement('div');
     tmp.innerHTML = p.displaytitle;
-    $('#article-title').textContent = shy(tmp.textContent || p.title, 7, true);   // długie słowo obok PL / Aa / Na później
+    $('#article-title').textContent = tmp.textContent || p.title;
     document.title = p.title + ' · Zakamarki';
     article.innerHTML = cleanArticle(p.text, lang);
     coverFromArticle(title);

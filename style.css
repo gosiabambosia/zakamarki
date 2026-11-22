@@ -407,14 +407,15 @@ main { padding: 6px var(--gutter) 48px; }
   display: grid; place-items: center; background: var(--pop-ink); color: var(--on-pop);
 }
 
-.reader-head { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; }
+/* Tytuł na całą szerokość, przyciski PL / Aa / Na później pod nim (T1, 2026-11-22): tytuł nigdy się nie dzieli. */
+.reader-head { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 12px; }
 #article-title {
-  flex: 1; min-width: 0; margin: 0;
+  min-width: 0; max-width: 100%; margin: 0;
   font-family: var(--font-body); font-weight: calc(var(--weight) + 200); font-size: 1.9rem; line-height: 1.15;
   color: var(--text); text-wrap: balance;
-  hyphens: auto; -webkit-hyphens: auto; overflow-wrap: break-word;   /* długie słowo obok trzech przycisków */
+  hyphens: none; -webkit-hyphens: none; overflow-wrap: break-word;   /* break-word tylko dla słowa dłuższego niż ekran */
 }
-.reader-tools { flex: none; display: flex; gap: 6px; margin-top: 6px; }
+.reader-tools { flex: none; display: flex; gap: 6px; }
 .pin, .aa {
   font: inherit; font-size: .8rem;
   padding: 6px 12px; border-radius: 999px; cursor: pointer;

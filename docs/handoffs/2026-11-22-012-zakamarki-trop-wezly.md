@@ -1,8 +1,8 @@
 # Handoff: Zakamarki — etap 4: Trop i Węzły
 
 **Data:** 2026-11-22
-**Stan:** kod etapu 4 gotowy i sprawdzony lokalnie na żywym API (`zakamarki-v18`, baza IndexedDB **v4**, kopia **v4**). `node tools/check.mjs` — OK. **Push czeka na jej potwierdzenie** po świeżej kopii zapasowej na telefonie (zmiana schematu bazy).
-**Następna sesja zaczyna od:** wrażeń z v18 na telefonie (lista niżej), potem C2 (szew nocą) albo etap 5.
+**Stan:** etap 4 wysłany (`zakamarki-v18`, baza IndexedDB **v4**, kopia **v4**; kopia na telefonie zrobiona przed pushem), potem nagłówek hasła T1 (`zakamarki-v19`). `node tools/check.mjs` — OK.
+**Następna sesja zaczyna od:** wrażeń z v18–v19 na telefonie (lista niżej), potem C2 (szew nocą) albo etap 5.
 
 ## Wrażenia z v15–v17 (początek sesji)
 Okładki ze zdjęciami — dobrze. Szkliwo i jasna tafla — zostają do zmiany palety na końcu; **podobają się jednolite, półprzezroczyste tafle**. Kropla — czysta. Tytuły na półkach — dobrze. Nic do poprawy.
@@ -22,7 +22,7 @@ Okładki ze zdjęciami — dobrze. Szkliwo i jasna tafla — zostają do zmiany 
 - `#trop-next` na końcu hasła — liczony dopiero, gdy stopka jest ≤ 900 px od ekranu (`IntersectionObserver`), 3 wiersze. „Otwórz” w arkuszu dokleja krok tropu (`state.pendingFrom = hasło`).
 - `#view-nodes` (`#/wezly`), trzecie kółko w `#dock`; komunikat postępu „Pobieram linki z przeczytanych haseł: i z n”; pusty stan opisuje warunek.
 - Wiersz (N1) `recRow()`/`recLine()`; arkusz `#why` z rysunkiem `whySvg()`.
-- **C1:** tytuł w czytniku: `shy(text, 7, true)` — niższy próg i luźniejsze reguły (dwie spółgłoski przed samogłoską: „Letch-worth”; ostatecznie przed spółgłoską między samogłoskami: „Phenome-nalism”). Półki bez zmian (`shy(text)`).
+- **C1 → T1 (v19):** najpierw tytuł dzielony łącznikiem (`shy` z niższym progiem, v18); jej prośba: nie dzielić tytułu wcale → makieta `.drafts/makiety/tytul.html` (T1 przyciski pod tytułem, T2 nad, T3 zmniejszanie). **Wybrane T1**: `.reader-head` w kolumnie, `#article-title` bez `hyphens`; `shy()` wróciło do wersji tylko dla półek.
 - `sw.js` → `zakamarki-v18`. Sprawdzone 375 px: Węzły (Papier i Kakao), arkusz, Trop na końcu Letchworth, „Otwórz” dokleja krok; konsola bez błędów aplikacji.
 
 ## Decyzje (z makiet w `.drafts/makiety/`, poza gitem)
@@ -36,27 +36,25 @@ Okładki ze zdjęciami — dobrze. Szkliwo i jasna tafla — zostają do zmiany 
 - Makiety w ramkach: po każdym zapisie pliku makiety panel otwiera ją jako `file://` (puste ramki) — zamknąć tę kartę i pokazać wersję z serwera.
 - Lokalna baza w panelu (`[::1]`) ma tylko pamięć linków z testów; dane przykładowe były tylko w pamięci.
 
-## Do sprawdzenia na telefonie (v18)
-1. Kopia zapasowa przed aktualizacją (baza v4) — potem push.
+## Do sprawdzenia na telefonie (v18–v19)
+1. Po aktualizacji: dane na miejscu (baza v4 migruje się przy pierwszym otwarciu).
 2. Ekran Węzły: ile węzłów przy prawdziwych danych, czas pierwszego pobrania linków (jednorazowo), czy nie ma śmieci (ogólniki typu Turin, World War I).
 3. Trop na końcu hasła: czy propozycje trzymają wątek; czy pojawia się na czas.
 4. Arkusz z rysunkiem: czytelność na telefonie, „Otwórz”.
-5. Tytuł w czytniku z łącznikiem.
+5. Nagłówek hasła T1: tytuł bez dzielenia, przyciski pod nim.
 
 ## Kolejne kroki
-1. Ona: świeża kopia → potwierdzenie → push (v18).
-2. Wrażenia z v18 → poprawki. Możliwe: filtr ogólników (kraje, miasta, wojny) przez Wikidata (etap 5), Węzły z zakreśleń przy niższym progu.
-3. **C2 (odłożone):** nocą szew między śliwkowym nagłówkiem a brązowym tłem Kakao — zmiana wyglądu, 2–3 warianty na żywo.
-4. **C3:** hook `pre-push` z `check.mjs` — czeka na jej decyzję.
-5. Etap 5: Statystyki i Atlas (rysunek z etapu 4 — wiersze zbiegające się w liczbie — może być wzorem dla „najgęstszych węzłów”).
+1. Wrażenia z v18 → poprawki. Możliwe: filtr ogólników (kraje, miasta, wojny) przez Wikidata (etap 5), Węzły z zakreśleń przy niższym progu.
+2. **C2 (odłożone):** nocą szew między śliwkowym nagłówkiem a brązowym tłem Kakao — zmiana wyglądu, 2–3 warianty na żywo.
+3. **C3:** hook `pre-push` z `check.mjs` — czeka na jej decyzję.
+4. Etap 5: Statystyki i Atlas (rysunek z etapu 4 — wiersze zbiegające się w liczbie — może być wzorem dla „najgęstszych węzłów”).
 
 ## Prompt dla kolejnego agenta
 ```
 Pracujemy nad Zakamarkami (~/Projekty/zakamarki, PWA, czysty HTML/CSS/JS, push na main = wdrożenie).
 Na start wywołaj skill task-observer (dziennik: ~/Projekty/.task-observer/observation-log.md — OPEN obserwacje stosuj).
 Przeczytaj CLAUDE.md, docs/PLAN.md, docs/STYL.md i handoff docs/handoffs/2026-11-22-012-zakamarki-trop-wezly.md. git status, git log -5.
-Jeśli v18 nie jest jeszcze wysłana: przypomnij o kopii zapasowej (baza v4), po jej potwierdzeniu node tools/check.mjs i push.
-1. Zapytaj o wrażenia z v18 (Węzły, Trop, arkusz z rysunkiem, tytuł) — pytania z gotowymi odpowiedziami; popraw.
+1. Zapytaj o wrażenia z v18–v19 (Węzły, Trop, arkusz z rysunkiem, nagłówek hasła T1) — pytania z gotowymi odpowiedziami; popraw.
 2. C2 szew nocą (2–3 warianty na żywo), C3 hook pre-push (zapytaj).
 Palety nie ruszamy. Makiety: prawdziwa aplikacja w ramkach, oglądane przez serwer, karty file:// zamykać.
 ```
