@@ -203,7 +203,7 @@ main { padding: 6px var(--gutter) 48px; }
   color: var(--pop-cobalt); font-variant-numeric: tabular-nums;
 }
 .hero-unit { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.hero-unit span { font-size: 1.75rem; font-weight: 600; letter-spacing: -.035em; line-height: .9; }
+.hero-unit span { font-size: 1.75rem; font-weight: 600; letter-spacing: -.01em; line-height: .9; }
 .hero-unit small { font-size: .9rem; color: var(--muted); line-height: 1; }
 #hero-search { border: 0; cursor: pointer; font-family: inherit; margin-top: 18px; }
 
@@ -225,7 +225,7 @@ main { padding: 6px var(--gutter) 48px; }
 .next-img .lvl b { font-size: .72rem; }
 .next-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 14px 10px 14px 16px; }
 .next-lab { font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.next-t { font-size: 1.45rem; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; overflow-wrap: anywhere; }
+.next-t { font-size: 1.45rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.05; overflow-wrap: anywhere; }
 .next-s { font-size: .82rem; color: var(--muted); }
 .next-go {
   align-self: center; flex: none; margin-right: 14px; width: 42px; height: 42px; border-radius: 50%;
