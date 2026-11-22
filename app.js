@@ -343,8 +343,43 @@ function plural(n, one, few, many) {
 
 /* Miniatury haseł (zdjęcie główne z prop=pageimages). Zapamiętujemy je w przeglądarce,
    także brak zdjęcia (null), żeby nie pytać Wikipedii drugi raz o to samo. Pytamy po 50 tytułów. */
+// Zapasowa okładka: gdy hasło nie ma zdjęcia głównego, największe zdjęcie (jpg/png, oba boki ≥ 200 px)
+// użyte w haśle — bez ikon z szablonów i pasków (Socrates.png z paska filozofii, logo Commons, znaki zapytania).
+const ICON_FILE = /socrates\.png|symbol|question|commons-logo|wikidata|wiki(quote|source|books|versity|news|voyage)|oojs|icon|logo|flag of|padlock|ambox|nuvola|crystal|portal|text document|disambig/i;
+async function fallbackThumbs(lang, titles) {
+  const found = {};
+  const data = await api({ action: 'query', prop: 'images', imlimit: 'max', redirects: '1', titles: titles.map(bareTitle).join('|') }, lang);
+  const alias = {};
+  for (const m of [...(data.query?.normalized || []), ...(data.query?.redirects || [])]) alias[m.to] = m.from;
+  const files = new Map();                 // plik → klucze haseł, w których jest
+  for (const pg of data.query?.pages || []) {
+    const keys = [keyFor(lang, pg.title), alias[pg.title] && keyFor(lang, alias[pg.title])].filter(Boolean);
+    for (const im of pg.images || []) {
+      if (!/\.(jpe?g|png|webp)$/i.test(im.title) || ICON_FILE.test(im.title)) continue;
+      files.set(im.title, [...(files.get(im.title) || []), ...keys]);
+    }
+  }
+  const all = [...files.keys()];
+  const best = {};                         // hasło → {area, url}
+  for (let i = 0; i < all.length; i += 50) {
+    const info = await api({ action: 'query', prop: 'imageinfo', iiprop: 'url|size', iiurlwidth: '300', titles: all.slice(i, i + 50).join('|') }, lang);
+    for (const f of info.query?.pages || []) {
+      const ii = f.imageinfo?.[0];
+      if (!ii || ii.width < 200 || ii.height < 200) continue;
+      for (const k of files.get(f.title) || []) {
+        const area = ii.width * ii.height;
+        if (!best[k] || area > best[k].area) best[k] = { area, url: ii.thumburl || ii.url };
+      }
+    }
+  }
+  for (const [k, v] of Object.entries(best)) found[k] = v.url;
+  return found;
+}
+
+// null = sprawdzone dawniej bez zapasu (sprawdzamy jeszcze raz), false = nie ma żadnego zdjęcia.
+const needThumb = (t) => !(t in state.thumbs) || state.thumbs[t] === null;
 async function loadThumbs(titles) {
-  const missing = [...new Set(titles)].filter((t) => !(t in state.thumbs));
+  const missing = [...new Set(titles)].filter(needThumb);
   const parts = [];
   for (const lang of new Set(missing.map(langOf))) {
     const mine = missing.filter((t) => langOf(t) === lang);
@@ -352,7 +387,8 @@ async function loadThumbs(titles) {
   }
   for (const [lang, part] of parts) {
     try {
-      const data = await api({ action: 'query', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '300', pilimit: '50', redirects: '1', titles: part.map(bareTitle).join('|') }, lang);
+      // pilicense=any: także zdjęcia niewolne (plakaty, okładki), które Wikipedia pokazuje w haśle
+      const data = await api({ action: 'query', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '300', pilimit: '50', pilicense: 'any', redirects: '1', titles: part.map(bareTitle).join('|') }, lang);
       const alias = {};
       for (const m of [...(data.query?.normalized || []), ...(data.query?.redirects || [])]) alias[m.to] = m.from;
       for (const pg of data.query?.pages || []) {
@@ -360,7 +396,9 @@ async function loadThumbs(titles) {
         state.thumbs[keyFor(lang, pg.title)] = src;
         if (alias[pg.title]) state.thumbs[keyFor(lang, alias[pg.title])] = src;
       }
-      for (const t of part) if (!(t in state.thumbs)) state.thumbs[t] = null;
+      const empty = part.filter((t) => !state.thumbs[t]);
+      const extra = empty.length ? await fallbackThumbs(lang, empty) : {};
+      for (const t of empty) state.thumbs[t] = extra[t] || false;
     } catch { break; /* bez internetu półki pokażą kolorowe karty */ }
   }
   if (missing.length) store.set('thumbs', state.thumbs);
@@ -373,10 +411,10 @@ async function loadThumbs(titles) {
    czytać, przechodzi z niej na półkę Czytam, a potem do Przeczytanych (z listy nie znika, więc
    przycisk w czytniku dalej jest wciśnięty). Hasła tylko otwarte nie trafiają na żadną półkę. */
 const SEEN_AT = 0.15, DONE_AT = 0.75;
-const COVER_COLORS = ['var(--pop-pink)', 'var(--pop-mustard)', 'var(--pop-lime)', 'var(--pop-lilac)', 'var(--pop-orange)'];
-const GLASS = ['var(--pop-pink)', 'var(--pop-mustard)', 'var(--pop-lime)', 'var(--pop-lilac)', 'var(--pop-orange)'];
-// Kolor liczby „22/41” na szkle: na ciemnych pełnych akcentach (śliwka, pomidor) jasny, na pozostałych tusz.
-const GLASS_TEXT = ['var(--on-pop-light)', 'var(--on-pop-light)', 'var(--on-pop-light)', 'var(--on-pop)', 'var(--on-pop)'];
+const COVER_COLORS = ['var(--cover-1)', 'var(--cover-2)', 'var(--cover-3)', 'var(--cover-4)', 'var(--cover-5)'];
+const GLASS = COVER_COLORS;
+// Kolor liczby „22/41” na szkle (osobno na każdą barwę; w Szkliwie wszystkie jasne, więc tusz).
+const GLASS_TEXT = ['var(--cover-ink)', 'var(--cover-ink)', 'var(--cover-ink)', 'var(--cover-ink)', 'var(--cover-ink)'];
 const SHELF_ROW_MAX = 24;                 // w rzędzie; reszta po rozwinięciu półki
 
 function shelves() {
@@ -386,6 +424,16 @@ function shelves() {
   const busy = new Set([...reading, ...done].map((r) => r.title));
   const later = state.saved.filter((t) => !busy.has(t));
   return { reading, later, done };
+}
+
+// Hasło bez zdjęcia głównego: okładką zostaje pierwsze większe zdjęcie z treści (w kolejności w haśle;
+// navboxy i paski cleanArticle już usunął). Działa przy czytaniu, więc dotyczy haseł z półek.
+function coverFromArticle(title) {
+  if (state.thumbs[title]) return;
+  const img = [...$('#article').querySelectorAll('img')].find((im) => +im.getAttribute('width') >= 100 && +im.getAttribute('height') >= 100 && !/\.svg/i.test(im.src));
+  if (!img) return;
+  state.thumbs[title] = img.src.replace(/^http:/, 'https:');
+  store.set('thumbs', state.thumbs);
 }
 
 // Okładka: zdjęcie hasła albo kolorowa karta z pierwszą literą.
@@ -402,7 +450,7 @@ function coverBox(title, i, cls) {
     box.append(im);
   } else {
     box.classList.add('no-img');
-    box.style.setProperty('--cc', COVER_COLORS[i % COVER_COLORS.length]);   // pastel liczy style.css (C1)
+    box.style.setProperty('--cc', COVER_COLORS[i % COVER_COLORS.length]);   // barwa Szkliwa (style.css: --cover-1…5)
     const l = document.createElement('i');
     l.textContent = shownTitle(title)[0];
     box.append(l);
@@ -551,7 +599,7 @@ function shelfTitles() {
 }
 function refreshShelfThumbs() {
   const want = shelfTitles();
-  if (want.some((t) => !(t in state.thumbs))) loadThumbs(want).then(() => { if (!$('#view-home').hidden) renderShelves(); });
+  if (want.some(needThumb)) loadThumbs(want).then(() => { if (!$('#view-home').hidden) renderShelves(); });
 }
 
 // Stuknięcie w nazwę półki albo w puste miejsce na niej rozwija ją w siatkę; drugie — zwija.
@@ -618,7 +666,7 @@ function renderHome() {
       if (top) img.append(glassLevel(top, 0));
     };
     paint();
-    if (!(t in state.thumbs)) loadThumbs([t]).then(() => { if (!$('#view-home').hidden) paint(); });
+    if (needThumb(t)) loadThumbs([t]).then(() => { if (!$('#view-home').hidden) paint(); });
   }
 
   // Trzy półki: najpierw od razu (z pamięci), potem z dociągniętymi miniaturami.
@@ -1241,7 +1289,7 @@ async function peekData(linkTitle) {
   const lang = langOf(linkTitle), bare = bareTitle(linkTitle);
   const data = await api({
     action: 'query', titles: bare, redirects: '1',
-    prop: 'description|pageimages|extracts', piprop: 'thumbnail', pithumbsize: '160',
+    prop: 'description|pageimages|extracts', piprop: 'thumbnail', pithumbsize: '160', pilicense: 'any',
     exintro: '1', explaintext: '1', exsentences: '2',
     list: 'search', srsearch: bare, srwhat: 'nearmatch', srnamespace: '0', srlimit: '1', srprop: 'wordcount'
   }, lang);
@@ -1251,7 +1299,7 @@ async function peekData(linkTitle) {
     desc: pg.description || '', extract: cleanExtract(pg.extract || ''),
     thumb: pg.thumbnail?.source || null, words: data.query?.search?.[0]?.wordcount || 0
   };
-  if (out.thumb && !(out.title in state.thumbs)) state.thumbs[out.title] = out.thumb;
+  if (out.thumb && !state.thumbs[out.title]) state.thumbs[out.title] = out.thumb;
   peek.cache.set(linkTitle, out);
   return out;
 }
@@ -1426,6 +1474,7 @@ async function openArticle(requested) {
     $('#article-title').textContent = tmp.textContent || p.title;
     document.title = p.title + ' · Zakamarki';
     article.innerHTML = cleanArticle(p.text, lang);
+    coverFromArticle(title);
     const wide = matchMedia('(min-width: 900px)').matches;
     article.querySelectorAll('.infobox-wrap').forEach((d) => { d.open = wide; });
     status.hidden = true;
