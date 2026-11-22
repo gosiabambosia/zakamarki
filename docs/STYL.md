@@ -53,8 +53,14 @@ Ciepła, wnętrzarska, redakcyjna: duża pewna typografia, beżowa baza z postar
 
 ### Typografia
 - **Inter Tight** w całym interfejsie. Nagłówki ekranów duże i ciasne (np. 2,4–3,3 rem, `letter-spacing` ok. −0,035em, waga 600), reszta 400–600.
-- **Fraunces Black Soft** (waga 900, SOFT 100) tylko w nazwie „Zakamarki” — ładowany z `&text=Zakamarki`.
-- **Plansza nazwy (2026-11-22, jej referencja):** ulubione = Fraunces SuperSoft Black z kropką „zakamarki.”, Paytone One, Niamoy Script, „Margith” (nazwa niezweryfikowana). Wspólne cechy: **małe litery** (wszystkie wersje z wielkim Z bez kropki), duża grubość, miękkie/okrągłe zakończenia, niski kontrast kresek, ciepło lat 70.; ręka (kursywa) jako druga, osobista nuta. Nie wybrane: wysoki kontrast (didony), faktura „postarzona”, cienka odręczna kreska, neutralny geometryczny grotesk. Kolor nazwy na planszy: kobalt. Kierunki K1–K5 w `.drafts/makiety/typografia.html`; **decyzja czeka** (handoff 010).
+- **Nazwa „zakamarki.” (2026-11-22, `zakamarki-v22`, do przetestowania na telefonie):** **Corben Bold** 700, 23,5 px, odstęp −0,005 em, małymi, granat `--brand`, kropka w pomidorze (`--pop-orange`; nocą krem i jasny pomidor). Ładowany z `&text=zakamarki.`. Wybrana sama w próbniku `.drafts/makiety/nazwa-probnik.html` (49 krojów, suwaki wielkości i odstępu, kolor nazwy i kropki, dzień/noc). Słowo bez dolnych wydłużeń → `.brand` przesunięta o 0,1 em w dół, żeby tusz stał na środku lupy. Wcześniej: Fraunces Black Soft „Zakamarki”.
+- **Opcje zapasowe nazwy (jej wybory z próbnika, wszystkie granat + kropka `#d0472f`):**
+  - Poppins 800 · 27 px · odstęp +0,02 em
+  - Playfair Display 900 · 30 px · +0,02 em
+  - Abril Fatface 400 · 30 px · +0,02 em
+  - Fraunces 820 (opsz 144, SOFT 100, WONK 0) · 32,5 px · +0,02 em
+  - Wcześniej też podobały się: Gluten 800 (26,5 px), Bricolage Grotesque 800 (wcięcia w łukach — „koncept”), Unbounded 700. Odrzucone jako mało czytelne: Ultra, Shrikhand, Bagel Fat One, Syne, Recursive Casual, Playwrite PL.
+- **Plansza nazwy (2026-11-22, jej referencja):** ulubione = Fraunces SuperSoft Black z kropką „zakamarki.”, Paytone One, Niamoy Script, „Margith” (nazwa niezweryfikowana). Wspólne cechy: **małe litery** (wszystkie wersje z wielkim Z bez kropki), duża grubość, miękkie/okrągłe zakończenia, niski kontrast kresek, ciepło lat 70.; ręka (kursywa) jako druga, osobista nuta. Nie wybrane: wysoki kontrast (didony), faktura „postarzona”, cienka odręczna kreska, neutralny geometryczny grotesk. Kolor nazwy na planszy: kobalt. Kierunki K1–K5 w `.drafts/makiety/typografia.html` (zamknięte próbnikiem nazwy, wyżej).
 - W czytniku kroje do wyboru: Literata (domyślna), Source Serif 4, Atkinson Hyperlegible Next, systemowy; płynna grubość.
 
 ### Wzorce UI

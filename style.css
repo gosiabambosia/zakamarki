@@ -7,12 +7,12 @@
    2. TŁO CZYTNIKA (html[data-page]) — tylko kartka z tekstem: --page, --text, --page-*.
       Dobrane pod astygmatyzm: kontrast 10–13:1 zamiast 21:1, bez czystej bieli i czerni.
    Panel „Aa” ustawia krój, grubość, wielkość, interlinię i szerokość kolumny na <html>.
-   Kroje interfejsu: Inter Tight (wszystko) + Fraunces Black Soft (tylko nazwa aplikacji). */
+   Kroje interfejsu: Inter Tight (wszystko) + Corben Bold (tylko nazwa aplikacji „zakamarki.”). */
 
 :root {
   --font-body: "Literata", Georgia, "Times New Roman", serif;
   --font-ui: "Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-brand: "Fraunces", Georgia, serif;
+  --font-brand: "Corben", Georgia, serif;
   --size: 18px;
   --weight: 400;
   --leading: 1.65;
@@ -148,12 +148,16 @@ html[data-view="reader"] body { background: var(--page); }
 }
 /* Nocą w czytniku nagłówek bierze kolor kartki (Kakao, Grafit), żeby granat nie odcinał się od tekstu. */
 :root[data-scheme="dark"][data-view="reader"] .bar { background: color-mix(in srgb, var(--page) 92%, transparent); }
+/* Nazwa „zakamarki.” (wybrana w próbniku 2026-11-22): Corben Bold, granat, kropka w pomidorze. */
 .brand {
-  flex: 1; font-family: var(--font-brand); font-weight: 900;
-  font-variation-settings: "SOFT" 100, "opsz" 72;
-  font-size: 1.75rem; line-height: 1; letter-spacing: -.01em;
+  flex: 1; font-family: var(--font-brand); font-weight: 700;
+  font-size: 23.5px; line-height: 1; letter-spacing: -.005em;
   color: var(--brand); text-decoration: none; white-space: nowrap;
+  /* Słowo bez dolnych wydłużeń: pudełko liter jest wyżej niż środek pola, więc tusz (od „k” do linii
+     pisma) siedział 2,4 px nad środkiem lupy. 0,1 em w dół wyrównuje go optycznie. */
+  transform: translateY(.1em);
 }
+.brand .dot { color: var(--pop-orange); }
 .round {
   flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer;
   display: grid; place-items: center; background: var(--pop-ink); color: var(--on-pop);
