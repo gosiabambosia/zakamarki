@@ -56,10 +56,11 @@ Kolejność od 2026-11-22: 1–4 ✅ → **8 (paleta i nazwa)** → 5 → 6 → 
 6. **Przejścia, Osobliwości, Parametry.** Przed startem sprawdzić CORS Lift Wing (niżej).
 7. **Myślnia** — szablon notatki do Obsidiana z przeczytanego hasła; ewentualnie synchronizacja między urządzeniami (np. prywatny GitHub Gist).
 8. **Korekta wyglądu: paleta i nazwa** — **następny etap, przed 5** (zmiana jej decyzji 2026-11-22 wieczorem: obecne kolory ją irytują; wcześniej: na koniec projektu). Handoff 013. Szczegóły i jej sygnały: handoffy 010 i 011, `docs/STYL.md`.
+   - ✅ **Paleta wdrożona (`zakamarki-v21`)**: dzień, noc granatowa, sześć barw okładek, szkło w barwie okładki, szew nocą rozwiązany (nagłówek w kolor kartki). Szczegóły w `docs/STYL.md`. Zostały: test stylu z referencji 11, krój nazwy.
    - **Paleta barw, kolor po kolorze — wybiera sama.** Forma: strona-próbnik — klik w pojedynczy kolor (z jej palet Procreate: `Amelie_color_palette.ase.swatches`, `studio_ghibli.swatches`, `Wes_Anderson.swatches`; zip z `Swatches.json`) → prawdziwa aplikacja w ramce przyjmuje go na żywo w wybranej roli. **Bez gotowych zestawów i rund wariantów** (przebodźcowywały).
    - Role do obsadzenia: tło i karty (jej sygnał: `#F8F4EC`, `#FFFCF5`), okładki bez zdjęcia (dziś tymczasowe Szkliwo `--cover-1…5`; kierunek: złoto `#E5C267`, przydymiony róż `#DDA9B8`, szara oliwka `#66664C`, jakiś fiolet; pastele „mdłe”), akcenty `--pop-*`, liczby (kobalt), wersja nocna. Zostają: róż kropek tropów `#d98aa3`, jednolite półprzezroczyste tafle półek (podobają się), zasada warstw „dolna jasna, wierzchnia pełna”.
    - Do pilnowania: zakreślacze „Lampy” nie mogą powtarzać akcentów; tafla Na później neutralna przy złotych okładkach; `#FFFCF5` w czytniku z tekstem ok. `#3A3530` (≈ 11,8:1 — jej zakres 10–13); kolor okładki ewentualnie jako pomiar (rodzaj hasła z Wikidata, etap 5c).
-   - **Szew nocą** (śliwkowy nagłówek nad brązowym Kakao, zaległość C2) — rozwiązać razem z nocną paletą.
+   - ✅ **Szew nocą** (zaległość C2) — nocą w czytniku nagłówek w kolorze kartki.
    - **Typografia nazwy „zakamarki”** (sama nazwa; nagłówki ekranów zostają w Inter Tight): kierunki K1 Fraunces SuperSoft małymi + kropka w akcencie (rekomendacja z 010), K4 Playwrite PL, K5 Fraunces + odręczne dopiski — `.drafts/makiety/typografia.html`; kolor nazwy (kobalt / atrament) dobrać już w nowej palecie. 2–3 warianty na żywo, bez przełączników.
    - Na koniec: przejrzeć `STYL.md` i usunąć słowo „tymczasowe” przy wszystkim, co zostało wybrane.
 

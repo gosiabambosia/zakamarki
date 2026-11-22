@@ -311,6 +311,16 @@ const lastOpened = (title) => { for (let i = state.history.length - 1; i >= 0; i
 function show(view) {
   for (const v of ['home', 'results', 'reader', 'highlights', 'nodes']) $('#view-' + v).hidden = v !== view;
   document.documentElement.dataset.view = view;   // w czytniku tłem strony jest kartka
+  syncThemeColor();
+}
+
+// Pasek systemowy telefonu w kolorze nagłówka: tło palety, a nocą w czytniku kolor kartki (style.css: .bar).
+function syncThemeColor() {
+  const root = document.documentElement;
+  const cs = getComputedStyle(root);
+  const night = root.dataset.scheme === 'dark' && root.dataset.view === 'reader';
+  const c = cs.getPropertyValue(night ? '--page' : '--bg').trim();
+  if (c) document.querySelector('meta[name="theme-color"]').content = c;
 }
 
 function linkItem(title, desc) {
@@ -417,10 +427,13 @@ async function loadThumbs(titles) {
    czytać, przechodzi z niej na półkę Czytam, a potem do Przeczytanych (z listy nie znika, więc
    przycisk w czytniku dalej jest wciśnięty). Hasła tylko otwarte nie trafiają na żadną półkę. */
 const SEEN_AT = 0.15, DONE_AT = 0.75;
-const COVER_COLORS = ['var(--cover-1)', 'var(--cover-2)', 'var(--cover-3)', 'var(--cover-4)', 'var(--cover-5)'];
+// Barwy okładek bez zdjęcia i szkła (style.css: --cover-1…6), kolejno w każdej półce. Szkło ma barwę
+// okładki, więc jedna barwa to jeden odcień szkła. Do każdej kolor litery i liczby „22/41” (--cover-ink-N).
+const COVERS = 6;
+const COVER_COLORS = Array.from({ length: COVERS }, (_, k) => `var(--cover-${k + 1})`);
+const COVER_INKS = Array.from({ length: COVERS }, (_, k) => `var(--cover-ink-${k + 1})`);
 const GLASS = COVER_COLORS;
-// Kolor liczby „22/41” na szkle (osobno na każdą barwę; w Szkliwie wszystkie jasne, więc tusz).
-const GLASS_TEXT = ['var(--cover-ink)', 'var(--cover-ink)', 'var(--cover-ink)', 'var(--cover-ink)', 'var(--cover-ink)'];
+const GLASS_TEXT = COVER_INKS;
 const SHELF_ROW_MAX = 24;                 // w rzędzie; reszta po rozwinięciu półki
 
 function shelves() {
@@ -456,7 +469,8 @@ function coverBox(title, i, cls) {
     box.append(im);
   } else {
     box.classList.add('no-img');
-    box.style.setProperty('--cc', COVER_COLORS[i % COVER_COLORS.length]);   // barwa Szkliwa (style.css: --cover-1…5)
+    box.style.setProperty('--cc', COVER_COLORS[i % COVER_COLORS.length]);
+    box.style.setProperty('--ci', COVER_INKS[i % COVER_INKS.length]);
     const l = document.createElement('i');
     l.textContent = shownTitle(title)[0];
     box.append(l);
@@ -2593,9 +2607,7 @@ function applyReader() {
   root.style.setProperty('--size', r.size + 'px');
   root.style.setProperty('--leading', String(r.leading));
   root.style.setProperty('--measure', r.measure + 'rem');
-  // Pasek systemowy telefonu w kolorze tła motywu.
-  const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
-  if (bg) document.querySelector('meta[name="theme-color"]').content = bg;
+  syncThemeColor();
 }
 
 function setReader(patch) {

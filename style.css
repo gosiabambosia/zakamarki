@@ -21,75 +21,73 @@
   --radius: 22px;
 }
 
-/* ——— 1. Paleta aplikacji: Wnętrze o zachodzie (dzień, od 2026-11-22; wcześniej Krem) ———
-   Neutralne: Kartka, Tło (kolor główny), Piasek, Linia, Szept, Tusz; liczby w kobalcie (Atrament).
-   Akcenty w wersji „pełnej” (okładki, szkło); jasne wersje tylko tam, gdzie stoi na nich tekst. */
+/* ——— 1. Paleta aplikacji (dzień, wybrana w próbniku 2026-11-22; wcześniej „Wnętrze o zachodzie”) ———
+   Jasne kremowe tło, granatowy tusz, liczby w kobalcie. Kartka prawie zlewa się z tłem: półki i karty
+   odcina rysunek, nie plama. Piasek i Linia to tło zmieszane z brązem Szeptu (12% i 26%). */
 :root {
-  --bg: #efe2d1;              /* Tło */
-  --surface: #faf2e8;         /* Kartka */
-  --surface-2: #e2cfb8;       /* Piasek */
-  --fg: #2a1c17;              /* Tusz */
-  --muted: #6b5848;           /* Szept */
-  --rule: #cdb69c;            /* Linia */
-  --brand: #2a1c17;
+  --bg: #fffcf5;              /* Tło */
+  --surface: #fffdf7;         /* Kartka */
+  --surface-2: #ece7df;       /* Piasek */
+  --fg: #05094d;              /* Tusz: granat */
+  --muted: #495a87;           /* Szept: granat rozjaśniony tłem (66%) */
+  --rule: #d7cfc5;            /* Linia */
+  --brand: #05094d;
   --accent: #2b46b8;          /* kobalt: fokus, suwaki, zaznaczenia */
-  --pop-pink: #d98aa3;        /* brudny róż */
-  --pop-orange: #d0472f;      /* pomidor */
-  --pop-mustard: #d6a11e;     /* musztarda */
+  --pop-pink: #d98aa3;        /* trop: kropki, kroki, powrót */
+  --pop-orange: #d0472f;      /* Aa w czytniku */
+  --pop-mustard: #d6a11e;     /* Na później (wciśnięte) */
   --pop-cobalt: #2b46b8;      /* Atrament: wielkie liczby */
-  --pop-lime: #75852b;        /* oliwka */
-  --pop-lilac: #8e4a7e;       /* śliwka */
-  --pop-ink: #2a1c17;         /* czarna pigułka (przyciski główne) */
-  --plank: #cdb69c;           /* deska pod okładkami na półce Czytam */
-  --slab: #faf2e8;            /* tafle Na później i Przeczytane: jedna, jasna, półprzezroczysta (mleczne szkło) */
-  --chip-bg: #cfd79e;         /* chipy z licznikami: oliwka jasna (pełna ma za mały kontrast z tekstem) */
-  /* Okładki bez zdjęcia i szkło poziomu: „Szkliwo” (2026-11-22, tymczasowo — paletę wybierze sama na końcu).
-     Osobne zmienne, więc kropki tropów i przyciski zostają w akcentach palety. */
-  --cover-1: #d48e98;         /* różowa glina */
-  --cover-2: #d4a965;         /* miód */
-  --cover-3: #81b297;         /* seladon */
-  --cover-4: #6e97bb;         /* gołębi błękit */
-  --cover-5: #c0765d;         /* rdza */
-  --cover-ink: #2a1c17;       /* litera i liczba na okładce — na wszystkich pięciu ciemna */
-  --on-pop: #faf2e8;          /* tekst na nasyconym kolorze i na atramencie */
-  --on-pop-light: #2a1c17;    /* tekst na jasnym akcencie */
-  /* Zakreślacze „Lampy” (z lamp-grzybków z moodboardu): własna rodzina, nie powtarza akcentów
-     interfejsu. Kolor kładziony jako marker z przezroczystością --hl-a (nocą słabszą). */
-  --hl-1: #7ccfb9;            /* morska zieleń */
-  --hl-2: #93b6f5;            /* niebieski */
-  --hl-3: #f4a77f;            /* morela */
-  --hl-4: #d59be0;            /* wrzos */
-  --hl-5: #ece06a;            /* cytryna */
+  --pop-ink: #05094d;         /* granatowa pigułka (przyciski główne) */
+  --plank: #d7cfc5;           /* deska pod okładkami na półce Czytam */
+  --slab: #fffdf7;            /* tafle Na później i Przeczytane: jedna, jasna, półprzezroczysta (mleczne szkło) */
+  /* Okładki bez zdjęcia i szkło poziomu: sześć barw kolejno (app.js: COVER_COLORS). Do każdej kolor
+     litery i liczby na szkle według kontrastu: granat albo krem. */
+  --cover-1: #f6b3d3;  --cover-ink-1: #05094d;   /* róż */
+  --cover-2: #2b46b8;  --cover-ink-2: #fffcf5;   /* kobalt */
+  --cover-3: #d0472f;  --cover-ink-3: #fffcf5;   /* pomidor */
+  --cover-4: #d6a11e;  --cover-ink-4: #05094d;   /* musztarda */
+  --cover-5: #75852b;  --cover-ink-5: #05094d;   /* oliwka */
+  --cover-6: #afa2f6;  --cover-ink-6: #05094d;   /* lawenda */
+  --cover-wash: #fffdf9;      /* rozjaśnienie okładki bez zdjęcia pod szkłem (półka Czytam) */
+  --on-pop: #fffcf5;          /* tekst na nasyconym kolorze i na granacie */
+  --on-pop-light: #05094d;    /* tekst na jasnym akcencie */
+  /* Zakreślacze: własna rodzina, kładziona jako marker z przezroczystością --hl-a (nocą słabszą). */
+  --hl-1: #7b98e5;            /* chaber */
+  --hl-2: #e99fb6;            /* róż */
+  --hl-3: #ffaf9e;            /* łosoś */
+  --hl-4: #f6d19a;            /* morela */
+  --hl-5: #adbb7c;            /* szałwia */
   --hl-a: 55%;
   color-scheme: light;
 }
 
-/* ——— Wnętrze nocą: śliwkowa głębia, beżowy tekst, akcenty rozjaśnione ——— */
+/* ——— Noc: granat (nocna wersja tuszu z dnia), kremowy tekst, okładki rozjaśnione w tej samej barwie.
+   Karty i linie to tło zmieszane z kremem (6%, 11%, 18%). ——— */
 :root[data-scheme="dark"] {
-  --bg: #1a1420;
-  --surface: #241c2b;
-  --surface-2: #2e2536;       /* Głębia */
-  --fg: #efe2cf;
-  --muted: #b0a294;
-  --rule: #3d3245;
-  --brand: #efe2cf;
+  --bg: #0f1230;
+  --surface: #191d3a;
+  --surface-2: #222741;       /* Głębia */
+  --fg: #f2ead9;
+  --muted: #a5a3a4;
+  --rule: #30344d;
+  --brand: #f2ead9;
   --accent: #9fb0f0;
   --pop-pink: #e8a4b4;
   --pop-orange: #ef7a68;
   --pop-mustard: #e5b34a;
   --pop-cobalt: #9fb0f0;
-  --pop-lime: #b9b45a;
-  --pop-lilac: #c59bc0;
-  --pop-ink: #efe2cf;
-  --on-pop: #1a1420;
-  --plank: #3d3245;
-  --slab: #efe2cf;
-  --cover-1: #e3a8b0;
-  --cover-2: #e1bf84;
-  --cover-3: #9dc6af;
-  --cover-4: #92b6d5;
-  --cover-5: #da9982;
-  --chip-bg: #b9b45a;
+  --pop-ink: #f2ead9;
+  --on-pop: #0f1230;
+  --on-pop-light: #0f1230;
+  --plank: #30344d;
+  --slab: #f2ead9;
+  --cover-1: #f6b3d3;  --cover-ink-1: #0f1230;
+  --cover-2: #90aefe;  --cover-ink-2: #0f1230;
+  --cover-3: #f39380;  --cover-ink-3: #0f1230;
+  --cover-4: #d5aa4f;  --cover-ink-4: #0f1230;
+  --cover-5: #a9bb63;  --cover-ink-5: #0f1230;
+  --cover-6: #b0a3f8;  --cover-ink-6: #0f1230;
+  --cover-wash: var(--surface);
   --hl-a: 40%;
   color-scheme: dark;
 }
@@ -148,6 +146,8 @@ html[data-view="reader"] body { background: var(--page); }
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
+/* Nocą w czytniku nagłówek bierze kolor kartki (Kakao, Grafit), żeby granat nie odcinał się od tekstu. */
+:root[data-scheme="dark"][data-view="reader"] .bar { background: color-mix(in srgb, var(--page) 92%, transparent); }
 .brand {
   flex: 1; font-family: var(--font-brand); font-weight: 900;
   font-variation-settings: "SOFT" 100, "opsz" 72;
@@ -212,7 +212,9 @@ main { padding: 6px var(--gutter) 48px; }
   display: grid; place-items: center; font-size: 2.6rem; font-weight: 600; letter-spacing: -.04em;
 }
 .next-img { position: relative; overflow: hidden; }
-.next-img.no-img { background: var(--cover-1); color: var(--cover-ink); }
+.next-img.no-img { background: var(--cover-1); color: var(--cover-ink-1); }
+/* z szkłem: okładka rozjaśniona, szkło pełne (jak na półce Czytam) */
+.next-img.no-img:has(.lvl) { background: color-mix(in oklab, var(--cover-1) 42%, var(--cover-wash)); color: var(--fg); }
 .next-img .lvl { min-height: 0; }
 .next-img .lvl b { font-size: .72rem; }
 .next-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 14px 10px 14px 16px; }
@@ -259,13 +261,14 @@ main { padding: 6px var(--gutter) 48px; }
 .shelf-row::-webkit-scrollbar { display: none; }
 .r-cover, .p-cover, .g-cover { position: relative; display: block; overflow: hidden; background: var(--surface-2); }
 .r-cover img, .p-cover img, .g-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.r-cover i, .p-cover i, .g-cover i { font-style: normal; font-size: 2.4rem; font-weight: 600; letter-spacing: -.04em; color: var(--cover-ink); }
+.r-cover i, .p-cover i, .g-cover i { font-style: normal; font-size: 2.4rem; font-weight: 600; letter-spacing: -.04em; color: var(--ci, var(--fg)); }
 .r-cover.no-img, .g-cover.no-img { display: grid; place-items: center; }
-/* Okładka bez zdjęcia: pełna barwa Szkliwa (--cc, z app.js). Szkło na niej to jasna mgła, nie kolor —
-   poziom czytania widać na każdej barwie. */
+/* Okładka bez zdjęcia: pełna barwa (--cc i litera --ci, z app.js). Pod szkłem (półka Czytam) okładka
+   jest rozjaśniona, a szkło pełne w jej kolorze — ten sam odcień co na zdjęciu, więc jedna barwa to
+   jedno szkło, z obrazkiem czy bez. */
 .r-cover.no-img, .p-cover.no-img, .g-cover.no-img { background: var(--cc); }
-.no-img .lvl { background: rgb(250 242 232 / .5); border-top: 2.5px solid rgb(250 242 232 / .95); }
-.no-img .lvl b { color: #2a1c17; }
+.r-cover.no-img:has(> .lvl), .g-cover.no-img:has(> .lvl) { background: color-mix(in oklab, var(--cc) 42%, var(--cover-wash)); }
+.r-cover.no-img:has(> .lvl) i, .g-cover.no-img:has(> .lvl) i { color: var(--fg); }
 
 /* Czytam: deska pod okładkami (nie przewija się razem z nimi) */
 .shelf-reading .shelf-row {
@@ -286,7 +289,7 @@ main { padding: 6px var(--gutter) 48px; }
 /* Szkło do poziomu przeczytanych akapitów; liczba „22/41” to pomiar, nie ozdoba */
 .lvl {
   position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--p) * 1%); min-height: 4px;
-  background: color-mix(in srgb, var(--g) 72%, transparent);
+  background: color-mix(in srgb, var(--g) 88%, transparent);
   -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
   border-top: 2.5px solid var(--g);
 }
@@ -303,7 +306,7 @@ main { padding: 6px var(--gutter) 48px; }
   -webkit-backdrop-filter: blur(16px) saturate(1.15); backdrop-filter: blur(16px) saturate(1.15);
   border-top: 1.5px solid rgb(255 255 255 / .7);
 }
-:root[data-scheme="dark"] .slab { background: color-mix(in srgb, var(--c) 16%, rgb(26 20 32 / .55)); border-top-color: rgb(255 255 255 / .16); }
+:root[data-scheme="dark"] .slab { background: color-mix(in srgb, var(--c) 16%, color-mix(in srgb, var(--bg) 55%, transparent)); border-top-color: rgb(255 255 255 / .16); }
 .p-item {
   flex: none; position: relative; width: 96px; height: 132px; border-radius: 7px; text-decoration: none; scroll-snap-align: start;
   box-shadow: 0 2px 3px rgb(0 0 0 / .12), 0 12px 22px -4px rgb(0 0 0 / .28);
@@ -357,7 +360,6 @@ main { padding: 6px var(--gutter) 48px; }
 .dots .seg.j { background: none; border-top: 2px dashed var(--fg); height: 0; }
 .dots .seg.gap { width: 4px; background: none; }
 .big-num { font-size: 4rem; font-weight: 600; letter-spacing: -.045em; line-height: .95; font-variant-numeric: tabular-nums; }
-.chip { font-size: .8rem; font-weight: 500; padding: 6px 11px; border-radius: 999px; background: var(--chip-bg); color: var(--on-pop-light); white-space: nowrap; }
 
 /* ——— trop nad artykułem ——— */
 .trail-row { display: flex; align-items: center; gap: 6px; padding: 10px 0 2px; }
@@ -579,7 +581,7 @@ main { padding: 6px var(--gutter) 48px; }
   flex: none; width: 60px; height: 60px; border-radius: 12px; background: var(--surface-2) center / cover no-repeat;
   display: grid; place-items: center; font-size: 1.6rem; font-weight: 600; color: var(--on-pop-light);
 }
-.peek-img.no-img { background: var(--cover-4); color: var(--cover-ink); }
+.peek-img.no-img { background: var(--cover-4); color: var(--cover-ink-4); }
 .peek-tt { min-width: 0; }
 .peek-tt h3 { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; overflow-wrap: anywhere; }
 .peek-tt p { margin: 3px 0 0; font-size: .85rem; color: var(--muted); }
