@@ -46,7 +46,7 @@ Okładki ze zdjęciami — dobrze. Szkliwo i jasna tafla — zostają do zmiany 
 ## Kolejne kroki
 1. Wrażenia z v18 → poprawki. Możliwe: filtr ogólników (kraje, miasta, wojny) przez Wikidata (etap 5), Węzły z zakreśleń przy niższym progu.
 2. **C2 (odłożone):** nocą szew między śliwkowym nagłówkiem a brązowym tłem Kakao — zmiana wyglądu, 2–3 warianty na żywo.
-3. **C3:** hook `pre-push` z `check.mjs` — czeka na jej decyzję.
+3. **C3 ✅:** hook `.git/hooks/pre-push` uruchamia `check.mjs` i zatrzymuje push przy błędzie (sprawdzony testem negatywnym: zmiana `app.js` bez podbicia CACHE → exit 1). Lokalny, poza repo.
 4. Etap 5: Statystyki i Atlas (rysunek z etapu 4 — wiersze zbiegające się w liczbie — może być wzorem dla „najgęstszych węzłów”).
 
 ## Prompt dla kolejnego agenta
@@ -55,6 +55,6 @@ Pracujemy nad Zakamarkami (~/Projekty/zakamarki, PWA, czysty HTML/CSS/JS, push n
 Na start wywołaj skill task-observer (dziennik: ~/Projekty/.task-observer/observation-log.md — OPEN obserwacje stosuj).
 Przeczytaj CLAUDE.md, docs/PLAN.md, docs/STYL.md i handoff docs/handoffs/2026-11-22-012-zakamarki-trop-wezly.md. git status, git log -5.
 1. Zapytaj o wrażenia z v18–v19 (Węzły, Trop, arkusz z rysunkiem, nagłówek hasła T1) — pytania z gotowymi odpowiedziami; popraw.
-2. C2 szew nocą (2–3 warianty na żywo), C3 hook pre-push (zapytaj).
+2. C2 szew nocą (2–3 warianty na żywo). Hook pre-push już jest.
 Palety nie ruszamy. Makiety: prawdziwa aplikacja w ramkach, oglądane przez serwer, karty file:// zamykać.
 ```

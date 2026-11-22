@@ -47,5 +47,5 @@ Czysty HTML/CSS/JS. **Bez frameworka, bez kroku budowania, bez zależności npm*
 - Szanuj API Wikimedia: cache'uj odpowiedzi, nie crawluj masowo, łącz zapytania (np. do 50 tytułów naraz w `prop=…`).
 - Licencja treści: stopka czytnika z atrybucją Wikipedii (CC BY-SA 4.0) i linkiem do oryginału — zostaw.
 - Testuj na żywym API lokalnie (`python3 -m http.server` w katalogu repo, potem `http://localhost:8000`), także w widoku mobilnym (~400 px szerokości). Przed wysłaniem zmian sprawdź brak błędów w konsoli.
-- **Przed każdym pushem uruchom `node tools/check.mjs`** (składnia, pliki z listy SHELL, podbity `CACHE` przy zmianie plików aplikacji, `DB_VERSION` → krok migracji + `BACKUP_VERSION`, brak plików kopii z danymi w repo). Kod wyjścia 1 = nie wysyłaj. Etap 2 testów (`core.js` + `node --test`) tylko po jej zgodzie.
+- **Przed każdym pushem uruchom `node tools/check.mjs`** (składnia, pliki z listy SHELL, podbity `CACHE` przy zmianie plików aplikacji, `DB_VERSION` → krok migracji + `BACKUP_VERSION`, brak plików kopii z danymi w repo). Kod wyjścia 1 = nie wysyłaj. Od 2026-11-22 robi to też lokalny hook `.git/hooks/pre-push` (poza repo; na nowym klonie trzeba go założyć jeszcze raz: `node tools/check.mjs || exit 1`). Etap 2 testów (`core.js` + `node --test`) tylko po jej zgodzie.
 - Wdrożenie: push na `main` → GitHub Pages publikuje automatycznie w 1–2 minuty.
