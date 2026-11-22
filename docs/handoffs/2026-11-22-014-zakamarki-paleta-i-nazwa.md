@@ -2,7 +2,7 @@
 
 **Data:** 2026-11-22 (noc, po handoffie 013)
 **Stan:** `zakamarki-v22` na `main` (commity `c33e8cb` paleta, `5791861` nazwa). Nazwa potwierdzona na telefonie. Repo czyste po commicie handoffu.
-**Następny etap:** 5 — Statystyki i Atlas (najpierw decyzje z PLAN, pkt 5 „Do ustalenia przed startem”).
+**Następny krok:** **logo / ikona aplikacji** w kroju nazwy (próbnik interaktywny, jej prośba po zamknięciu etapu 8), potem etap 5 — Statystyki i Atlas.
 
 ## Co zrobione
 1. **Próbnik palety** `.drafts/makiety/probnik.html` (poza gitem): prawdziwa aplikacja w ramce, dane tylko w pamięci (zapis `store` wyłączony). Sekcja A — tło (kafle tła z kartą); B — **role** (okładki, liczby, tekst, trop, Aa, na później, zakreślacze) z paskiem „obecny → nowy”, rząd „obecna” jako odniesienie, jej palety z iCloud i Figmy, **tonacje** (odmiany jej kolorów w OKLCH, nie koło barw); ramka sama przełącza start/czytnik według roli; C — dwa warianty szkła. Wynik: linijka „kopiuj”.
@@ -14,6 +14,14 @@
 4. **Szew nocą**: wybrała „w kolor kartki” — `:root[data-scheme="dark"][data-view="reader"] .bar` bierze `--page`; nowa `syncThemeColor()` (wołana z `show()` i `applyReader()`) ustawia pasek telefonu tak samo.
 5. **Nazwa**: rundy wariantów (K1/K4/Paytone → +3 ozdobne → +3 czytelne → groteski → ręczne/funky) nie trafiały; przełom dał **próbnik nazwy** `.drafts/makiety/nazwa-probnik.html` (49 krojów z Google Fonts przez `&text=zakamarki.`, grupy, auto-wielkość do ~165 px, suwaki wielkości i odstępu, kolor nazwy i kropki, dzień/noc). Wybór: **Corben 700 · 23,5 px · −0,005 em · granat · kropka `#d0472f`** (v22). `.brand` przesunięta `translateY(.1em)` — słowo bez dolnych wydłużeń siedziało 2,4 px nad środkiem lupy (zmierzone canvasem: środek tuszu 30,9 vs lupa 31). Opcje zapasowe zapisane w `STYL.md` (Typografia).
 6. **Test z referencji 11** — odłożony (PLAN pkt 8, ⏸). Wyjaśnione jej, czym był; nie była pewna, czy potrzebny.
+
+## Następny krok: logo (ikona aplikacji) — próbnik
+Jej prośba (2026-11-22, po zamknięciu etapu): logo **na bazie obecnego kroju nazwy** (Corben Bold), zrobione **tak jak próbniki** — sama wybiera na interaktywnej makiecie.
+- **Dziś:** `icons/icon.svg` (+ `icon-maskable.svg`, PNG 192/512/maskable-512, `apple-touch-icon.png`) — różowe odręczne „z” z buźką na ciemnym `#22191f`: stara paleta, inny krój. Manifest i `sw.js` (lista plików) wskazują te pliki.
+- **Próbnik** `.drafts/makiety/logo-probnik.html` (poza gitem), wzór: `nazwa-probnik.html`. Podgląd na żywo w kontekstach, w których logo żyje: ikona na ekranie telefonu (siatka kilku ikon, zaokrąglony kwadrat iOS, jasny i ciemny ekran), ikona w maskowanym kółku (Android), mała 32 px (karta przeglądarki), plus nagłówek aplikacji obok.
+- **Elementy do wyboru (kafle-próbki, bez nazw słownych):** znak — „z”, „z.”, „zk”, „zakamarki.” na dwie linie, sama kropka; tło ikony z jej palety (granat, krem, kobalt, pomidor, róż, lawenda, musztarda, oliwka) i kolor znaku/kropki; suwaki: wielkość znaku, położenie (pion/poziom), obrót (lekko, jak w starym logo), odstęp; przełącznik kropki; ewentualnie buźka/rumieńce z dzisiejszej ikony jako opcja (humor w jednej warstwie — STYL). Corben ładować pełny (nie `&text=`), bo litery się zmieniają.
+- **Wynik:** linijka „kopiuj” z ustawieniami → wdrożenie: SVG z literami zamienionymi na ścieżki (żeby ikona nie zależała od fontu; np. opentype.js z CDN w makiecie do eksportu ścieżek albo ręczne wyrysowanie w skrypcie node), potem PNG 192/512/maskable 512/apple-touch 180 (np. `sips`/`rsvg-convert`/node canvas — sprawdzić, co jest w systemie), manifest bez zmian nazw plików, **CACHE +1**, sprawdzić `theme_color`.
+- Zasady jak zawsze: jedna decyzja naraz, próbnik zamiast rund (O21), obejrzeć w dużym i małym rozmiarze przed pokazaniem, wersja z serwera `http://[::1]:8000/`.
 
 ## Wnioski o współpracy (do stosowania)
 - **Próbnik zamiast rund** działa też dla krojów, nie tylko kolorów: po 5 rundach wariantów od nas sama wybrała w 1 podejściu. Przy każdej decyzji „gustu” z dużą przestrzenią — od razu próbnik (O11/O12 potwierdzone).
@@ -32,10 +40,14 @@
 Pracujemy nad Zakamarkami: osobistym czytnikiem angielskiej Wikipedii (PWA, czysty HTML/CSS/JS, bez frameworka, GitHub Pages). Repozytorium: ~/Projekty/zakamarki (push na main = wdrożenie; hook pre-push uruchamia tools/check.mjs).
 
 Na start:
-1. Wywołaj skill task-observer (dziennik: ~/Projekty/.task-observer/observation-log.md); obserwacje OPEN stosuj, zwłaszcza O10–O20.
-2. Przeczytaj CLAUDE.md, docs/PLAN.md, docs/STYL.md i handoff docs/handoffs/2026-11-22-014-zakamarki-paleta-i-nazwa.md. git status, git log -5.
+1. Wywołaj skill task-observer (dziennik: ~/Projekty/.task-observer/observation-log.md); obserwacje OPEN stosuj, zwłaszcza O10–O21.
+2. Przeczytaj CLAUDE.md, docs/PLAN.md, docs/STYL.md i handoff docs/handoffs/2026-11-22-014-zakamarki-paleta-i-nazwa.md (sekcja „Następny krok: logo”). Obejrzyj icons/icon.svg i .drafts/makiety/nazwa-probnik.html (wzór próbnika). git status, git log -5.
 
-Zadanie: etap 5 — Statystyki i Atlas. Zacznij od decyzji z PLAN (pkt 5, „Do ustalenia przed startem”), jedna naraz: (a) podział 5a/5b/5c, (b) które 3–5 statystyk najpierw, (c) gdzie się pokazują, (d) Atlas. Gdzie decyzja jest „gustem” z dużą przestrzenią — zrób próbnik na prawdziwej aplikacji (wzór: .drafts/makiety/probnik.html, nazwa-probnik.html), nie rundy wariantów.
+Zadanie 1 — logo (ikona aplikacji) w kroju nazwy (Corben Bold):
+1. Zbuduj próbnik .drafts/makiety/logo-probnik.html (poza gitem), na wzór nazwa-probnik.html: podgląd na żywo w prawdziwych kontekstach (ikona na ekranie telefonu wśród innych, jasny i ciemny ekran, maska kółka Androida, 32 px w karcie, obok nagłówek aplikacji). Do wyboru kaflami/suwakami: znak („z”, „z.”, „zk”, „zakamarki.” na dwie linie, sama kropka), tło i kolor znaku/kropki z palety aplikacji, wielkość, położenie, lekki obrót, kropka tak/nie, opcjonalnie buźka z obecnej ikony. Linijka „kopiuj” z ustawieniami. Przed pokazaniem: obejrzyj w dużym i małym rozmiarze, zamknij karty file://, pokaż z http://[::1]:8000/....
+2. Po jej wyborze: SVG z literami jako ścieżkami (niezależny od fontu), PNG 192/512/maskable 512/apple-touch 180, manifest i sw.js bez zmian nazw plików, podbij CACHE, sprawdź na 375 px i w konsoli, commit, push.
 
-Zasady: po polsku, krótko, jedna decyzja naraz, 2–3 warianty, opcje pokazuj próbką/kształtem/położeniem, bez zdań-pytań w interfejsie. Każdą odpowiedź kończ sekcją „Dalej”. Nigdy nie commituj jej danych. Przy zmianie plików aplikacji podbij CACHE. Na koniec handoff docs/handoffs/…-015-…md, aktualizacja PLAN/STYL, commit, push; pokaż obserwacje task-observer.
+Zadanie 2 (potem, najlepiej po krótkim handoffie, jeśli kontekst się wydłuży) — etap 5: Statystyki i Atlas. Zacznij od decyzji z PLAN (pkt 5, „Do ustalenia przed startem”), jedna naraz. Gdzie decyzja jest gustem z dużą przestrzenią — próbnik na prawdziwej aplikacji, nie rundy wariantów.
+
+Zasady: po polsku, krótko, jedna decyzja naraz, 2–3 warianty tylko przy wąskich decyzjach, opcje pokazuj próbką/kształtem/położeniem, bez zdań-pytań w interfejsie. Każdą odpowiedź kończ sekcją „Dalej”. Nigdy nie commituj jej danych. Przy zmianie plików aplikacji podbij CACHE. Na koniec handoff docs/handoffs/…-015-…md, aktualizacja PLAN/STYL, commit, push; pokaż obserwacje task-observer.
 ```

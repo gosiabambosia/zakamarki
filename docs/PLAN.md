@@ -59,6 +59,7 @@ Kolejność od 2026-11-22: 1–4 ✅ → **8 (paleta i nazwa)** → 5 → 6 → 
    - ✅ **Paleta (`zakamarki-v21`)** wybrana sama w próbniku `.drafts/makiety/probnik.html`: tło `#fffcf5`, granatowy tusz `#05094d`, sześć barw okładek, szkło w barwie okładki, nowe zakreślacze; noc granatowa `#0f1230` (z 3 wariantów, `.drafts/makiety/noc.html`).
    - ✅ **Szew nocą** (zaległość C2) — nocą w czytniku nagłówek i pasek telefonu w kolorze kartki.
    - ✅ **Nazwa „zakamarki.”** w Corben Bold z pomidorową kropką (`zakamarki-v22`), wybrana sama w próbniku `.drafts/makiety/nazwa-probnik.html`, potwierdzona na telefonie; opcje zapasowe w `docs/STYL.md` (Typografia).
+   - **Następny krok: logo / ikona aplikacji** w kroju nazwy (Corben), przez interaktywny próbnik — plan w handoffie 014. Dzisiejsza ikona (różowe „z” z buźką na `#22191f`) jest ze starej palety.
    - ⏸ **Test stylu z referencji 11** (lawendowe tło, wielki tytuł ekranu, biała karta z licznikami) — odłożony: półki ze szkłem i wielkie liczby już są, a kolorowe tło przestawiłoby świeżo wybraną paletę. Wrócić tylko na jej prośbę.
 
 ## Do sprawdzenia przy budowie
