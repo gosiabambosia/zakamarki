@@ -400,7 +400,7 @@ function coverBox(title, i, cls) {
     box.append(im);
   } else {
     box.classList.add('no-img');
-    box.style.background = COVER_COLORS[i % COVER_COLORS.length];
+    box.style.setProperty('--cc', COVER_COLORS[i % COVER_COLORS.length]);   // pastel liczy style.css (C1)
     const l = document.createElement('i');
     l.textContent = shownTitle(title)[0];
     box.append(l);
@@ -433,16 +433,29 @@ function shelfLink(title, cls, resumeRead) {
   return a;
 }
 
+// Miękki łącznik w długich słowach (> 11 liter), także w częściach słów z myślnikiem: między dwiema
+// spółgłoskami (samogłoska-spółgłoska | spółgłoska-samogłoska) najbliżej środka słowa, np. „Corres-pondence”.
+// Przeglądarka sama takich słów w wąskiej kolumnie nie dzieli, a cięcie byle gdzie gubi łącznik.
+const VOWEL = /[aeiouyąęó]/i;
+function shy(text) {
+  return text.split(/([ -])/).map((w) => {
+    if (w.length <= 11) return w;
+    let best = -1;
+    for (let i = 4; i <= w.length - 4; i++) {
+      if (VOWEL.test(w[i - 2]) && !VOWEL.test(w[i - 1]) && !VOWEL.test(w[i]) && VOWEL.test(w[i + 1])) {
+        if (best < 0 || Math.abs(i - w.length / 2) < Math.abs(best - w.length / 2)) best = i;
+      }
+    }
+    return best < 0 ? w : w.slice(0, best) + '\u00ad' + w.slice(best);
+  }).join('');
+}
+
+// Tytuł na półce: jedna wielkość pisma (T1), długie słowa z miękkim łącznikiem.
 function label(text, cls) {
   const s = document.createElement('span');
   s.className = cls;
-  s.lang = langOf(text);                   // poprawne dzielenie wyrazów w języku hasła
-  text = shownTitle(text);
-  s.textContent = text;
-  // Długie pojedyncze słowo (np. „Bioluminescence”) mniejszym pismem, zamiast łamać je byle gdzie.
-  const long = Math.max(...text.split(' ').map((w) => w.length));
-  if (long > 14) s.classList.add('xlong');
-  else if (long > 11) s.classList.add('long');
+  s.lang = langOf(text);
+  s.textContent = shy(shownTitle(text));
   return s;
 }
 
