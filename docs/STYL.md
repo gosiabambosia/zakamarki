@@ -53,7 +53,7 @@ Ciepła, wnętrzarska, redakcyjna: duża pewna typografia, beżowa baza z postar
 
 ### Typografia
 - **Inter Tight** w całym interfejsie. Nagłówki ekranów duże i ciasne (np. 2,4–3,3 rem, `letter-spacing` ok. −0,035em, waga 600), reszta 400–600.
-- **Nazwa „zakamarki.” (2026-11-22, `zakamarki-v22`, do przetestowania na telefonie):** **Corben Bold** 700, 23,5 px, odstęp −0,005 em, małymi, granat `--brand`, kropka w pomidorze (`--pop-orange`; nocą krem i jasny pomidor). Ładowany z `&text=zakamarki.`. Wybrana sama w próbniku `.drafts/makiety/nazwa-probnik.html` (49 krojów, suwaki wielkości i odstępu, kolor nazwy i kropki, dzień/noc). Słowo bez dolnych wydłużeń → `.brand` przesunięta o 0,1 em w dół, żeby tusz stał na środku lupy. Wcześniej: Fraunces Black Soft „Zakamarki”.
+- **Nazwa „zakamarki.” (2026-11-22, `zakamarki-v22`, potwierdzona na telefonie):** **Corben Bold** 700, 23,5 px, odstęp −0,005 em, małymi, granat `--brand`, kropka w pomidorze (`--pop-orange`; nocą krem i jasny pomidor). Ładowany z `&text=zakamarki.`. Wybrana sama w próbniku `.drafts/makiety/nazwa-probnik.html` (49 krojów, suwaki wielkości i odstępu, kolor nazwy i kropki, dzień/noc). Słowo bez dolnych wydłużeń → `.brand` przesunięta o 0,1 em w dół, żeby tusz stał na środku lupy. Wcześniej: Fraunces Black Soft „Zakamarki”.
 - **Opcje zapasowe nazwy (jej wybory z próbnika, wszystkie granat + kropka `#d0472f`):**
   - Poppins 800 · 27 px · odstęp +0,02 em
   - Playfair Display 900 · 30 px · +0,02 em
