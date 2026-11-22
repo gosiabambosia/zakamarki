@@ -26,7 +26,7 @@ Mapa jej podgrafu (przeczytane + krawędź), rozłożona według sieci linków, 
 
 ## Etapy
 
-Kolejność od 2026-11-22: 1–4 ✅ → **8 (paleta i nazwa)** → 5 → 6 → 7.
+Kolejność od 2026-11-22: 1–4 ✅ → 8 ✅ (paleta, nazwa, logo) → **5 (5a → 5c → 5b)** → 6 → 7.
 
 
 1. **Szkielet i hosting** — ✅ wyszukiwarka, czytnik, zapis tropu i historii, przypinanie, PWA.
@@ -51,7 +51,8 @@ Kolejność od 2026-11-22: 1–4 ✅ → **8 (paleta i nazwa)** → 5 → 6 → 
    - **Węzły** (trzecie kółko w dolnym pasku, `#/wezly`): nieprzeczytane cele z ≥ **3 rodzin tropów** (hasło liczy się do rodziny, w której pojawiło się najwcześniej); kolejność: tropy, zakreślenia, liczba haseł; przekierowania wyrównane `resolveTitles()` (50 na zapytanie). Wagi stałe, bez ustawień (jej decyzja).
    - Do obserwacji: ogólniki (Turin, World War I) wchodzą, gdy linkuje do nich treść z kilku tropów — ewentualny filtr po rodzaju hasła z Wikidata w etapie 5.
 5. **Statystyki i Atlas** — czas i słowa, głębokość, najdłuższe tropy, najgęstsze węzły, rozkład epok, miejsc i rodzajów haseł, niszowość w czasie, kalendarz aktywności, wzrost mapy.
-   - **Do ustalenia przed startem** (jedna decyzja naraz, makiety na prawdziwych danych): (a) podział na 5a *Statystyki z własnego śladu* (bez nowych zapytań: czas i akapity z wizyt, tropy, półki, zakreślenia, kalendarz) i 5b *Atlas* (mapa podgrafu: układ siłowy + regiony) oraz 5c *Wikidata* (epoka, miejsce, rodzaj hasła — `pageprops` → `wbgetentities` po 50); (b) które 3–5 statystyk najpierw; (c) gdzie się pokazują (czwarte kółko w dolnym pasku); (d) Atlas: własny układ czy biblioteka z CDN (przypięta wersja); nazwy regionów — jej czy Claude'a.
+   - ✅ **(a) Kolejność (2026-11-22, jej decyzja): 5a → 5c → 5b** — najpierw statystyki z własnego śladu (bez nowych zapytań), potem Wikidata, na końcu Atlas (regiony łatwiej nazwać z rodzajami haseł z 5c).
+   - **Do ustalenia dalej** (jedna decyzja naraz, makiety na prawdziwych danych; gust → próbnik): (a) podział na 5a *Statystyki z własnego śladu* (bez nowych zapytań: czas i akapity z wizyt, tropy, półki, zakreślenia, kalendarz) i 5b *Atlas* (mapa podgrafu: układ siłowy + regiony) oraz 5c *Wikidata* (epoka, miejsce, rodzaj hasła — `pageprops` → `wbgetentities` po 50); (b) które 3–5 statystyk najpierw; (c) gdzie się pokazują (czwarte kółko w dolnym pasku); (d) Atlas: własny układ czy biblioteka z CDN (przypięta wersja); nazwy regionów — jej czy Claude'a.
    - Z etapu 4: forma „wiersze zbiegające się w liczbie” jako wzór dla najgęstszych węzłów; filtr ogólników w Węzłach (kraje, miasta, wojny) po rodzaju hasła z 5c.
 6. **Przejścia, Osobliwości, Parametry.** Przed startem sprawdzić CORS Lift Wing (niżej).
 7. **Myślnia** — szablon notatki do Obsidiana z przeczytanego hasła; ewentualnie synchronizacja między urządzeniami (np. prywatny GitHub Gist).
@@ -59,7 +60,7 @@ Kolejność od 2026-11-22: 1–4 ✅ → **8 (paleta i nazwa)** → 5 → 6 → 
    - ✅ **Paleta (`zakamarki-v21`)** wybrana sama w próbniku `.drafts/makiety/probnik.html`: tło `#fffcf5`, granatowy tusz `#05094d`, sześć barw okładek, szkło w barwie okładki, nowe zakreślacze; noc granatowa `#0f1230` (z 3 wariantów, `.drafts/makiety/noc.html`).
    - ✅ **Szew nocą** (zaległość C2) — nocą w czytniku nagłówek i pasek telefonu w kolorze kartki.
    - ✅ **Nazwa „zakamarki.”** w Corben Bold z pomidorową kropką (`zakamarki-v22`), wybrana sama w próbniku `.drafts/makiety/nazwa-probnik.html`, potwierdzona na telefonie; opcje zapasowe w `docs/STYL.md` (Typografia).
-   - **Następny krok: logo / ikona aplikacji** w kroju nazwy (Corben), przez interaktywny próbnik — plan w handoffie 014. Dzisiejsza ikona (różowe „z” z buźką na `#22191f`) jest ze starej palety.
+   - ✅ **Logo / ikona (`zakamarki-v23`)** wybrana sama w próbniku `.drafts/makiety/logo-probnik.html`: „zaka/marki” w Corben Bold, pomidor na kremie, granatowa miękka gwiazda; nazwa w nagłówku „zakamarki✦” z tą samą gwiazdą w pomidorze, odstęp −0,04 em (v24–v25). Handoff 015.
    - ⏸ **Test stylu z referencji 11** (lawendowe tło, wielki tytuł ekranu, biała karta z licznikami) — odłożony: półki ze szkłem i wielkie liczby już są, a kolorowe tło przestawiłoby świeżo wybraną paletę. Wrócić tylko na jej prośbę.
 
 ## Do sprawdzenia przy budowie

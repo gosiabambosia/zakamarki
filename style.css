@@ -158,7 +158,7 @@ html[data-view="reader"] body { background: var(--page); }
      pisma) siedział 2,4 px nad środkiem lupy. 0,1 em w dół wyrównuje go optycznie. */
   transform: translateY(.1em);
 }
-.brand .star { display: inline-block; width: .62em; height: .76em; margin-left: .07em; vertical-align: baseline;
+.brand .star { display: inline-block; width: .7em; height: .86em; margin-left: .16em; vertical-align: baseline;
   fill: var(--pop-orange); transform: translateY(-.1em); }
 .round {
   flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer;
