@@ -1,7 +1,7 @@
 # Handoff: Zakamarki — logo i nazwa z gwiazdą; etap 5 ruszył (decyzja: 5a → 5c → 5b)
 
 **Data:** 2026-11-22 (wieczór, po handoffie 014)
-**Stan:** `zakamarki-v25` na `main`. Repo czyste po commicie handoffu. Użytkowniczka robi przerwę po tej sesji.
+**Stan:** `zakamarki-v26` na `main`. Repo czyste po commicie handoffu. Użytkowniczka robi przerwę po tej sesji.
 **Następny krok:** etap **5a — Statystyki z własnego śladu**: decyzja (b) „które 3–5 statystyk najpierw” — pokazana próbnikiem na jej prawdziwych liczbach, nie listą.
 
 ## Co zrobione
@@ -10,6 +10,11 @@
    - Eksport: `logoSVG(false|true)` w próbniku → `fetch` POST do jednorazowego odbiornika `127.0.0.1:8765` (skrypt w scratchpadzie) → `icons/icon.svg`, `icon-maskable.svg`; PNG przez `qlmanage -t -s 512/192/180`. Manifest i nazwy plików bez zmian.
 3. **Nazwa „zakamarki✦” (v24–v25):** w `index.html` zamiast `<span class="dot">` inline SVG `.star` (ta sama miękka gwiazda, ścieżka w viewBox `-1.6 -1.9 82.2 100.3`), w CSS 0,7×0,86 em, odstęp 0,16 em, `translateY(-.1em)`, kolor `--pop-orange` (nocą jasny pomidor). Odstęp liter −0,04 em (jak w logo). Pierwsza wersja gwiazdy (0,5 em) „gubiła się”.
 4. **Etap 5 — decyzja (a):** kolejność **5a → 5c → 5b** (jej wybór, zgodny z rekomendacją). Zapisane w PLAN.
+
+## Dopisek (v26)
+- Odstęp liter w logo i nazwie: −0,04 → **−0,025 em** (zmierzone opentype.js: przy −0,04 pudełka „z” i „a” nachodzą o 2 jednostki/1000, przy −0,025 mają 13 szpary). Logo wyeksportowane z próbnika na nowo, reszta ustawień bez zmian.
+- Gwiazda w nazwie wyśrodkowana na **środku małych liter** (x-height 0,633 em → środek 0,317 em nad linią pisma; zmierzone w aplikacji: 7,4 px = 7,4 px).
+- CACHE `zakamarki-v26`.
 
 ## Następny krok: 5a — które statystyki najpierw
 - Dane już są (bez nowych zapytań): wizyty w `history` (czas `ms`, nowe akapity `p`, dzień), `reads` (stany otwarte/przejrzane/doczytane, akapity, czas), `trails` (długość, odgałęzienia, skoki), półki (`saved`), `highlights` (kolory, hasła), Węzły (`computeNodes`).
@@ -26,7 +31,7 @@
 - Serwer: python http.server na 8000 już działał (spoza `preview_start`); adres `http://[::1]:8000/`.
 - Nawigacja z karty `file://` w batchu przenosi stronę do nowej karty, a dalsze kroki z tym samym tabId trafiają w starą (`data:`) — najpierw zamknąć karty `file://`, potem nawigować (O22).
 - Na Androidzie zainstalowana PWA podmienia ikonę z opóźnieniem (do ~doby); szybciej: usunąć skrót i zainstalować ponownie.
-- CACHE: `zakamarki-v25`.
+- CACHE: `zakamarki-v26`.
 
 ## Prompt dla kolejnego agenta
 ```

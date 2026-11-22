@@ -148,18 +148,18 @@ html[data-view="reader"] body { background: var(--page); }
 }
 /* Nocą w czytniku nagłówek bierze kolor kartki (Kakao, Grafit), żeby granat nie odcinał się od tekstu. */
 :root[data-scheme="dark"][data-view="reader"] .bar { background: color-mix(in srgb, var(--page) 92%, transparent); }
-/* Nazwa „zakamarki✦” (próbnik 2026-11-22): Corben Bold, granat, odstęp jak w logo (−0,04 em);
+/* Nazwa „zakamarki✦” (próbnik 2026-11-22): Corben Bold, granat, odstęp jak w logo (−0,025 em: przy −0,04 „z” i „a” zachodziły);
    zamiast kropki miękka gwiazda z ikony (ten sam kształt), w pomidorze. */
 .brand {
   flex: 1; font-family: var(--font-brand); font-weight: 700;
-  font-size: 23.5px; line-height: 1; letter-spacing: -.04em;
+  font-size: 23.5px; line-height: 1; letter-spacing: -.025em;
   color: var(--brand); text-decoration: none; white-space: nowrap;
   /* Słowo bez dolnych wydłużeń: pudełko liter jest wyżej niż środek pola, więc tusz (od „k” do linii
      pisma) siedział 2,4 px nad środkiem lupy. 0,1 em w dół wyrównuje go optycznie. */
   transform: translateY(.1em);
 }
 .brand .star { display: inline-block; width: .7em; height: .86em; margin-left: .16em; vertical-align: baseline;
-  fill: var(--pop-orange); transform: translateY(-.1em); }
+  fill: var(--pop-orange); transform: translateY(.113em); }   /* środek gwiazdy = środek wysokości małych liter (x-height Corben 0,633 em) */
 .round {
   flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer;
   display: grid; place-items: center; background: var(--pop-ink); color: var(--on-pop);

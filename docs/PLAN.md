@@ -60,7 +60,7 @@ Kolejność od 2026-11-22: 1–4 ✅ → 8 ✅ (paleta, nazwa, logo) → **5 (5a
    - ✅ **Paleta (`zakamarki-v21`)** wybrana sama w próbniku `.drafts/makiety/probnik.html`: tło `#fffcf5`, granatowy tusz `#05094d`, sześć barw okładek, szkło w barwie okładki, nowe zakreślacze; noc granatowa `#0f1230` (z 3 wariantów, `.drafts/makiety/noc.html`).
    - ✅ **Szew nocą** (zaległość C2) — nocą w czytniku nagłówek i pasek telefonu w kolorze kartki.
    - ✅ **Nazwa „zakamarki.”** w Corben Bold z pomidorową kropką (`zakamarki-v22`), wybrana sama w próbniku `.drafts/makiety/nazwa-probnik.html`, potwierdzona na telefonie; opcje zapasowe w `docs/STYL.md` (Typografia).
-   - ✅ **Logo / ikona (`zakamarki-v23`)** wybrana sama w próbniku `.drafts/makiety/logo-probnik.html`: „zaka/marki” w Corben Bold, pomidor na kremie, granatowa miękka gwiazda; nazwa w nagłówku „zakamarki✦” z tą samą gwiazdą w pomidorze, odstęp −0,04 em (v24–v25). Handoff 015.
+   - ✅ **Logo / ikona (`zakamarki-v23`)** wybrana sama w próbniku `.drafts/makiety/logo-probnik.html`: „zaka/marki” w Corben Bold, pomidor na kremie, granatowa miękka gwiazda; nazwa w nagłówku „zakamarki✦” z tą samą gwiazdą w pomidorze, odstęp −0,025 em, gwiazda na środku małych liter (v24–v26). Handoff 015.
    - ⏸ **Test stylu z referencji 11** (lawendowe tło, wielki tytuł ekranu, biała karta z licznikami) — odłożony: półki ze szkłem i wielkie liczby już są, a kolorowe tło przestawiłoby świeżo wybraną paletę. Wrócić tylko na jej prośbę.
 
 ## Do sprawdzenia przy budowie
