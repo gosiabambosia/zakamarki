@@ -48,8 +48,17 @@ Mapa jej podgrafu (przeczytane + krawędź), rozłożona według sieci linków, 
    - **Węzły** (trzecie kółko w dolnym pasku, `#/wezly`): nieprzeczytane cele z ≥ **3 rodzin tropów** (hasło liczy się do rodziny, w której pojawiło się najwcześniej); kolejność: tropy, zakreślenia, liczba haseł; przekierowania wyrównane `resolveTitles()` (50 na zapytanie). Wagi stałe, bez ustawień (jej decyzja).
    - Do obserwacji: ogólniki (Turin, World War I) wchodzą, gdy linkuje do nich treść z kilku tropów — ewentualny filtr po rodzaju hasła z Wikidata w etapie 5.
 5. **Statystyki i Atlas** — czas i słowa, głębokość, najdłuższe tropy, najgęstsze węzły, rozkład epok, miejsc i rodzajów haseł, niszowość w czasie, kalendarz aktywności, wzrost mapy.
-6. **Przejścia, Osobliwości, Parametry.**
+   - **Do ustalenia przed startem** (jedna decyzja naraz, makiety na prawdziwych danych): (a) podział na 5a *Statystyki z własnego śladu* (bez nowych zapytań: czas i akapity z wizyt, tropy, półki, zakreślenia, kalendarz) i 5b *Atlas* (mapa podgrafu: układ siłowy + regiony) oraz 5c *Wikidata* (epoka, miejsce, rodzaj hasła — `pageprops` → `wbgetentities` po 50); (b) które 3–5 statystyk najpierw; (c) gdzie się pokazują (czwarte kółko w dolnym pasku); (d) Atlas: własny układ czy biblioteka z CDN (przypięta wersja); nazwy regionów — jej czy Claude'a.
+   - Z etapu 4: forma „wiersze zbiegające się w liczbie” jako wzór dla najgęstszych węzłów; filtr ogólników w Węzłach (kraje, miasta, wojny) po rodzaju hasła z 5c.
+6. **Przejścia, Osobliwości, Parametry.** Przed startem sprawdzić CORS Lift Wing (niżej).
 7. **Myślnia** — szablon notatki do Obsidiana z przeczytanego hasła; ewentualnie synchronizacja między urządzeniami (np. prywatny GitHub Gist).
+8. **Korekta wyglądu: paleta i nazwa** — na koniec projektu (jej decyzja 2026-11-22), gdy wszystkie ekrany już istnieją. Szczegóły i jej sygnały: handoffy 010 i 011, `docs/STYL.md`.
+   - **Paleta barw, kolor po kolorze — wybiera sama.** Forma: strona-próbnik — klik w pojedynczy kolor (z jej palet Procreate: `Amelie_color_palette.ase.swatches`, `studio_ghibli.swatches`, `Wes_Anderson.swatches`; zip z `Swatches.json`) → prawdziwa aplikacja w ramce przyjmuje go na żywo w wybranej roli. **Bez gotowych zestawów i rund wariantów** (przebodźcowywały).
+   - Role do obsadzenia: tło i karty (jej sygnał: `#F8F4EC`, `#FFFCF5`), okładki bez zdjęcia (dziś tymczasowe Szkliwo `--cover-1…5`; kierunek: złoto `#E5C267`, przydymiony róż `#DDA9B8`, szara oliwka `#66664C`, jakiś fiolet; pastele „mdłe”), akcenty `--pop-*`, liczby (kobalt), wersja nocna. Zostają: róż kropek tropów `#d98aa3`, jednolite półprzezroczyste tafle półek (podobają się), zasada warstw „dolna jasna, wierzchnia pełna”.
+   - Do pilnowania: zakreślacze „Lampy” nie mogą powtarzać akcentów; tafla Na później neutralna przy złotych okładkach; `#FFFCF5` w czytniku z tekstem ok. `#3A3530` (≈ 11,8:1 — jej zakres 10–13); kolor okładki ewentualnie jako pomiar (rodzaj hasła z Wikidata, etap 5c).
+   - **Szew nocą** (śliwkowy nagłówek nad brązowym Kakao, zaległość C2) — rozwiązać razem z nocną paletą.
+   - **Typografia nazwy „zakamarki”** (sama nazwa; nagłówki ekranów zostają w Inter Tight): kierunki K1 Fraunces SuperSoft małymi + kropka w akcencie (rekomendacja z 010), K4 Playwrite PL, K5 Fraunces + odręczne dopiski — `.drafts/makiety/typografia.html`; kolor nazwy (kobalt / atrament) dobrać już w nowej palecie. 2–3 warianty na żywo, bez przełączników.
+   - Na koniec: przejrzeć `STYL.md` i usunąć słowo „tymczasowe” przy wszystkim, co zostało wybrane.
 
 ## Do sprawdzenia przy budowie
 

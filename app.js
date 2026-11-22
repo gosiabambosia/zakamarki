@@ -1532,11 +1532,10 @@ async function renderNodes() {
   list.hidden = false;
 }
 
-/* ——— mapa tropu (minimapa M2) ———
-   Arkusz od dołu z całą rodziną tropu jak z linią metra: bieżący trop to główna linia,
-   odgałęzienia (tropy połączone przez branchOf) skręcają w bok od hasła, w którym się rozeszły.
-   Przystanki mają znaki stanu jak linki; przerywany odcinek = skok z wyszukiwarki; kroki
-   „przed tobą” przygaszone. Stuknięcie w przystanek otwiera hasło (na odgałęzieniu — wznawia je). */
+/* ——— mapa tropu ———
+   Arkusz od dołu z całą rodziną tropu (trop + odgałęzienia połączone przez branchOf), od 3b jako drzewo
+   M4 (familyTree niżej; linia metra M2 odrzucona). Znaki stanu jak przy linkach; skok z wyszukiwarki
+   przerywaną kreską; kroki „przed tobą” przygaszone. Stuknięcie otwiera hasło (na odgałęzieniu — wznawia je). */
 function trailFamily(T) {
   const byId = new Map(state.trails.map((t) => [t.id, t]));
   let root = T;

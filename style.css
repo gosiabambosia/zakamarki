@@ -545,7 +545,7 @@ main { padding: 6px var(--gutter) 48px; }
 }
 .attribution a { color: var(--muted); }
 
-/* ——— mapa tropu (minimapa M2): linia metra w arkuszu od dołu ——— */
+/* ——— mapa tropu: drzewo (M4) w arkuszu od dołu ——— */
 .map-head { display: flex; align-items: baseline; justify-content: space-between; margin: 2px 0 8px; }
 .map-head h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
 .map-wrap { position: relative; }

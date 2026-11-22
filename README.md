@@ -1,29 +1,25 @@
 # Zakamarki
 
-Osobisty czytnik angielskiej Wikipedii z zapisem tropów. Etap 2 z 7.
+Osobisty czytnik angielskiej (i polskiej) Wikipedii z zapisem tropów czytania i rekomendacjami, które pokazują swoje uzasadnienie. PWA w czystym HTML/CSS/JS, bez frameworka i kroku budowania. Etapy 1–4 z 8 (plan: `docs/PLAN.md`).
+
+Działa pod adresem: https://gosiabambosia.github.io/zakamarki/
 
 ## Co jest w środku
 
 | Plik | Rola |
 |---|---|
-| `index.html` | szkielet: nagłówek z wyszukiwarką i trzy widoki (start, wyniki, czytnik) |
+| `index.html` | szkielet: widoki start, Zakreślenia, Węzły, wyniki, czytnik; arkusze i dolny pasek |
 | `style.css` | wygląd; kolory, kroje i rozmiary to zmienne na górze pliku |
-| `app.js` | logika: zapytania do API Wikipedii, czyszczenie treści, zapis tropu i historii |
-| `manifest.webmanifest` | opis potrzebny, żeby telefon traktował stronę jak aplikację |
-| `sw.js` | service worker: trzyma pliki aplikacji w pamięci telefonu |
-| `icons/` | ikony aplikacji |
+| `app.js` | logika: API Wikipedii, czyszczenie treści, tropy, pomiar czytania, półki, zakreślenia, Trop i Węzły, kopia zapasowa |
+| `manifest.webmanifest`, `sw.js`, `icons/` | instalacja jako aplikacja i praca offline; `icons/icon.svg` to źródło ikon |
+| `tools/check.mjs` | skrypt kontrolny przed wysłaniem (uruchamia go też lokalny hook `pre-push`) |
 | `CLAUDE.md` | kontekst projektu dla Claude Code |
-| `docs/` | plan etapów i handoffy z sesji |
+| `docs/` | plan etapów (`PLAN.md`), kierunek wizualny (`STYL.md`), handoffy z sesji |
 
-Dane (trop, historia, przypięte) leżą wyłącznie w pamięci przeglądarki na danym urządzeniu. Repozytorium zawiera tylko kod.
+Dane czytania (tropy, historia, półki, zakreślenia) leżą wyłącznie w pamięci przeglądarki na danym urządzeniu (IndexedDB); przenosi je plik kopii zapasowej z ekranu startowego. Repozytorium zawiera tylko kod.
 
-## Wdrożenie na GitHub Pages
+## Wdrożenie
 
-1. Na github.com: **New repository** → nazwa `zakamarki` → **Public** → Create.
-2. W nowym repozytorium: **uploading an existing file** → przeciągnij wszystkie pliki oraz foldery `icons` i `docs` (zawartość folderu `zakamarki`, nie sam folder) → **Commit changes**.
-3. **Settings → Pages** → Source: **Deploy from a branch** → Branch: `main`, folder `/ (root)` → Save.
-4. Po 1–2 minutach aplikacja działa pod adresem `https://TWOJANAZWA.github.io/zakamarki/`.
-5. Android (Chrome): otwórz adres → menu ⋮ → **Zainstaluj aplikację** / **Dodaj do ekranu głównego**.
-   iPad (Safari): przycisk udostępniania → **Do ekranu początkowego**.
+Push na gałąź `main` → GitHub Pages publikuje w 1–2 minuty. Przed pushem: `node tools/check.mjs` (kod wyjścia 1 = nie wysyłać). Przy każdej zmianie plików aplikacji podbić `CACHE` w `sw.js`.
 
-Aktualizacja w przyszłości: w repozytorium **Add file → Upload files**, wgrywasz nowe wersje plików, commit. Telefon pokaże nową wersję przy drugim otwarciu aplikacji.
+Instalacja: Android (Chrome) — menu ⋮ → **Zainstaluj aplikację**; iPad (Safari) — Udostępnij → **Do ekranu początkowego**.
