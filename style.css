@@ -148,16 +148,18 @@ html[data-view="reader"] body { background: var(--page); }
 }
 /* Nocą w czytniku nagłówek bierze kolor kartki (Kakao, Grafit), żeby granat nie odcinał się od tekstu. */
 :root[data-scheme="dark"][data-view="reader"] .bar { background: color-mix(in srgb, var(--page) 92%, transparent); }
-/* Nazwa „zakamarki.” (wybrana w próbniku 2026-11-22): Corben Bold, granat, kropka w pomidorze. */
+/* Nazwa „zakamarki✦” (próbnik 2026-11-22): Corben Bold, granat, odstęp jak w logo (−0,04 em);
+   zamiast kropki miękka gwiazda z ikony (ten sam kształt), w pomidorze. */
 .brand {
   flex: 1; font-family: var(--font-brand); font-weight: 700;
-  font-size: 23.5px; line-height: 1; letter-spacing: -.005em;
+  font-size: 23.5px; line-height: 1; letter-spacing: -.04em;
   color: var(--brand); text-decoration: none; white-space: nowrap;
   /* Słowo bez dolnych wydłużeń: pudełko liter jest wyżej niż środek pola, więc tusz (od „k” do linii
      pisma) siedział 2,4 px nad środkiem lupy. 0,1 em w dół wyrównuje go optycznie. */
   transform: translateY(.1em);
 }
-.brand .dot { color: var(--pop-orange); }
+.brand .star { display: inline-block; width: .62em; height: .76em; margin-left: .07em; vertical-align: baseline;
+  fill: var(--pop-orange); transform: translateY(-.1em); }
 .round {
   flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer;
   display: grid; place-items: center; background: var(--pop-ink); color: var(--on-pop);
