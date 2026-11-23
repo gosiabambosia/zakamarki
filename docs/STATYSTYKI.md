@@ -73,6 +73,10 @@ statystyki · czas, dni-tyg, kalendarz, długość, tropy, kształt, daleko, mos
 - [ ] **długość w słowach** (`słowa-hasła`) — Ile słów mają hasła, które czytasz; ile słów przeczytałaś razem. _Źródło: nowe zapytania do Wikipedii._
 - [ ] **wiek hasła** (`wiek-hasła`) — Kiedy hasło powstało na Wikipedii i jak bardzo jest rozbudowane. _Źródło: nowe zapytania do Wikipedii._
 
+## Wygląd (od 2026-11-23)
+
+Ekran: pigułki grup u góry, jedna grupa naraz; grupa „Wikidata” w aplikacji nazywa się **Tematyka**. Wybrane formy: `czas` — heatmapa dni × godzin (do przerobienia: mniej pustych kratek, skala na miesiące), `dni-tyg` — rozeta (liczy **różne hasła dziennie**, średnio na dzień danego typu, z „×N” dni w danych). Pozostałe — jeszcze do wyboru (próbnik `.drafts/makiety/statystyki-czas.html`).
+
 ## Wybór według tego, kiedy da się go zbudować
 
 1. **Z danych, które już są (5a, bez nowych zapytań):** `czas`, `akapity` (pomiar od 18 lis); `dni-tyg`, `kalendarz`, `nowe`, `wzrost` (historia od 16 lis); `długość`, `tropy`, `kształt`, `daleko`, `mosty` (tropy); `porzucone` (stan Czytam + ostatnia wizyta); `zakreślenia`, `dokąd` (zakreślenia, pole `links`); `później` (półka Na później + stan haseł).
